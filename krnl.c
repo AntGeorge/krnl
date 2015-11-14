@@ -50,6 +50,8 @@
 //http://www.nongnu.org/avr-libc/user-manual/FAQ.html#faq_cplusplus nice info
 #include "krnl.h"
 #include <avr/wdt.h>
+#include <util/delay.h>
+
 // CPU frequency - for adjusting delays
 #if (F_CPU == 16000000)
 #pragma message ("krnl detected 16 MHz" )
@@ -218,14 +220,16 @@ int tmr_indx;			            // for travelling Qs in tmr isr
 void
 k_eat_time (unsigned int eatTime)
 {
-    // delayMicroseconds (in wiring.c) do busy waiting by running in a loop and execute
-    // a well known number og asm instruction with known time lenght
-    // so its only  pure straight math
-    while (eatTime > 10) {
-        eatTime -= 10;
-        delayMicroseconds (10000);
-    }
-    delayMicroseconds (eatTime * 1000);
+        // _delay_us() performs busywait
+        while (eatTime > 10) {
+                eatTime -= 10;
+                _delay_us(10000);
+        }
+
+        while (eatTime > 0) {
+                eatTime -= 1;
+                _delay_us(1000);
+        }
 }
 
 //---QOPS---------------------------------------------------------------------
