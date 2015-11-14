@@ -48,6 +48,7 @@
 *****************************************************/
 
 //http://www.nongnu.org/avr-libc/user-manual/FAQ.html#faq_cplusplus nice info
+
 #include "krnl.h"
 #include <avr/wdt.h>
 #include <util/delay.h>
@@ -295,20 +296,18 @@ struct k_t *pE;
 
 ISR (KRNLTMRVECTOR, ISR_NAKED)
 {
-    // no local vars ! I think
-    PUSHREGS ();
+
+    PUSHREGS ();     // no local vars ! I think
 
     TCNTx = tcntValue;		// Reload the timer
 
-    if (!k_running) {	// obvious
+    if (!k_running) 
         goto exitt;
-    }
 
     fakecnt--;			// for very slow k_start values 
                         //bq timer cant run so slow (8 bit timers at least)
-    if (0 < fakecnt) {	// how often shall we run KeRNeL timer code ?
+    if (0 < fakecnt)  	// how often shall we run KeRNeL timer code ?
         goto exitt;
-    }
 
     fakecnt = fakecnt_preset;	// now it's time for doing RT stuff
 
@@ -316,7 +315,7 @@ ISR (KRNLTMRVECTOR, ISR_NAKED)
 
     // the following may look crazy: to go through all semaphores and tasks
     // but you may have 3-4 tasks and 3-6 semaphores in your code
-    // so - seesm to be efficient :-)
+    // so - seems to be efficient :-)
     // so - it's a good idea not to init krnl with more items 
     // (tasks/Sem/msg descriptors than needed)
 
@@ -349,7 +348,6 @@ ISR (KRNLTMRVECTOR, ISR_NAKED)
 
     if (krnl_preempt_flag) {
         prio_enQ (pAQ, deQ (pRun));	// round robbin
-
         K_CHG_STAK ();
     }
 
