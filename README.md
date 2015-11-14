@@ -141,6 +141,11 @@ Install from github:
 1) cd whatever/sketchbook/libraries   - see Preferences for path to sketchbook
 2) git clone https://github.com/jdn-aau/krnl.git
 
+## About digital ports
+
+Normally (like on UNO) dig out 8-13 is on PORTB 0-6
+
+But on Leonardo it is different  dig 8-13 is 8-11 on PORTB 4-7, 12 on PORTD 6 and 13 on PORTC 7
 
 ## Warning 
 You have from Arduino inherited many critical regions which you have to protect - like
