@@ -337,8 +337,8 @@ ISR (KRNLTMRVECTOR, ISR_NAKED)
         if (0 < pE->cnt2) {	// timer active on task ?
             pE->cnt2--;		// yep so let us do one down count
             if (pE->cnt2 <= 0) {	// timeout ? ( == 0 )
-              pE->cnt3--;  // leaving sem
-              prio_enQ(pAQ,deQ(pE));
+              ((struct k_t *)(pE->cnt3))->cnt1++;  // leaving sem so adjust semcount on sem
+              prio_enQ(pAQ,deQ(pE));               // and rip task of semQ and insert in activeQ
               pE->cnt2 = -1;	// indicate timeout in this semQ
             }
         }
