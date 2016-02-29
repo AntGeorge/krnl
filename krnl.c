@@ -4,14 +4,14 @@
 *  __  _    ___  ____   ____     ___  _              *
 * |  |/ ]  /  _]|    \ |    \   /  _]| |             *
 * |  ' /  /  [_ |  D  )|  _  | /  [_ | |             *
-* |    \ |    _]|    / |  |  ||    _]| |___          * 
+* |    \ |    _]|    / |  |  ||    _]| |___          *
 * |     ||   [_ |    \ |  |  ||   [_ |     |         *
 * |  .  ||     ||  .  \|  |  ||     ||     |         *
 * |__|\_||_____||__|\_||__|__||_____||_____|         *
 *                                                    *
 *                                                    *
-*          krnl.c  part of kernel KRNL               *
-*         based on "snot"                            *
+*     krnl.c  part of kernel KRNL                    *
+*           based on "snot"                          *
 *                                                    *
 *  June,               2014                          *
 *  Feb                 2015                          *
@@ -24,7 +24,7 @@
 *                                                    *
 * this version adapted for Arduino                   *
 *                                                    *
-* (C) 2012,2013,2014                                 *
+* (C) 2012,2013,2014,2015                            *
 *                                                    *
 * Jens Dalsgaard Nielsen <jdn@es.aau.dk>             *
 * http://es.aau.dk/staff/jdn                         *
@@ -51,7 +51,9 @@
 
 #include "krnl.h"
 #include <avr/wdt.h>
+#include <avr/interrupt.h>
 #include <util/delay.h>
+#include <stdlib.h>
 
 // CPU frequency - for adjusting delays
 #if (F_CPU == 16000000)
@@ -60,13 +62,9 @@
 #pragma message ("krnl detected 8 MHz")
 #endif
 
-
 #if (KRNL_VRS != 2002)
 #error "KRNL VERSION NOT UPDATED in krnl.c /JDN"
 #endif
-
-#include <avr/interrupt.h>
-#include <stdlib.h>
 
 /*
 #ifdef __cplusplus
@@ -179,16 +177,16 @@ extern "C" {
 
 #else
 
-#pragma err "no valid tmr selected"
+#pragma err "KRNL: no valid tmr selected"
 
 #endif
 
 
 //----------------------------------------------------------------------------
 
-struct k_t *task_pool,		// array of descriptors for tasks
-        *sem_pool,			// .. for semaphores
-        AQ,				// Q head for active Q
+struct k_t *task_pool,    // array of descriptors for tasks
+        *sem_pool,	      // .. for semaphores
+              AQ,				// Q head for active Q
         *pmain_el,			// procesdecriptor for main
         *pAQ,				// head of activeQ (AQ)
         *pDmy,				// ref to dummy task
@@ -301,10 +299,10 @@ ISR (KRNLTMRVECTOR, ISR_NAKED)
 
     TCNTx = tcntValue;		// Reload the timer
 
-    if (!k_running) 
+    if (!k_running)
         goto exitt;
 
-    fakecnt--;			// for very slow k_start values 
+    fakecnt--;			// for very slow k_start values
                         //bq timer cant run so slow (8 bit timers at least)
     if (0 < fakecnt)  	// how often shall we run KeRNeL timer code ?
         goto exitt;
@@ -316,7 +314,7 @@ ISR (KRNLTMRVECTOR, ISR_NAKED)
     // the following may look crazy: to go through all semaphores and tasks
     // but you may have 3-4 tasks and 3-6 semaphores in your code
     // so - seems to be efficient :-)
-    // so - it's a good idea not to init krnl with more items 
+    // so - it's a good idea not to init krnl with more items
     // (tasks/Sem/msg descriptors than needed)
 
 
@@ -339,8 +337,9 @@ ISR (KRNLTMRVECTOR, ISR_NAKED)
         if (0 < pE->cnt2) {	// timer active on task ?
             pE->cnt2--;		// yep so let us do one down count
             if (pE->cnt2 <= 0) {	// timeout ? ( == 0 )
-                ki_signal ((struct k_t *) (pE->cnt3));
-                pE->cnt2 = -1;	// indicate timeout in this semQ
+              pE->cnt3--;  // leaving sem
+              prio_enQ(pAQ,deQ(pE));
+              pE->cnt2 = -1;	// indicate timeout in this semQ
             }
         }
         pE++;
@@ -407,7 +406,7 @@ k_crt_task (void (*pTask) (void), char prio, char *pStk, int stkSize)
 
     s = pStk + stkSize - 1;	// now we point on top of stak
     *(s--) = 0x00;		// 1 byte safety distance
-    // an interrupt do only push PC on stack by HW - can be 2 or 3 bytes 
+    // an interrupt do only push PC on stack by HW - can be 2 or 3 bytes
     // depending of 368/.../1280/2560
     *(s--) = lo8 (pTask);	//  so top now holds address of function
     *(s--) = hi8 (pTask);	// which is code body for task

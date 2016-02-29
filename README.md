@@ -1,5 +1,5 @@
-# KRNL - a small preemptive kernel for small systems 
-       
+# KRNL - a small preemptive kernel for small systems
+
 I have found it interesting to develop an open source realtime kernel for the Arduino platform - but is also portable to other platforms
 
 * latest version 2001 *
@@ -7,7 +7,7 @@ I have found it interesting to develop an open source realtime kernel for the Ar
 
 changes about clip of semaphores so Liy & Layland RMA is detectable (when it fails deadlines)
 
-- SEE SOME NOTES BELOW ABOUT TIMERS AND PINS 
+- SEE SOME NOTES BELOW ABOUT TIMERS AND PINS
 - Now doxygen docu at html directory :-)
 - See krnl.h for further comments
 - - timers
@@ -39,13 +39,13 @@ See some warnings in the bottom !!!
 
 
 - Mmeory usage
-As of vrs 2001 
+As of vrs 2001
 -- static usage around 70B
 -- a semaphore/task occpy 18B in krnl data structure
 -- a msg-Q occupy 17B plus 18B(an internal semaphore)
 -- the two above allocated from heap
 
-So k_init(2,3,4) gives 71B global (static) and 18*((2+1)+(3+1)+4) + 4*17 = 266B which 
+So k_init(2,3,4) gives 71B global (static) and 18*((2+1)+(3+1)+4) + 4*17 = 266B which
 
 the +1 on task for a descriptor for main/dummy
 the +1 on semaphore for the timer/sleep semaphore
@@ -54,7 +54,7 @@ And then you have to add up arrays for stack for each task. Less than 50B is not
 You can runtime check how deep the stack has been used by k_unused_stak
 
 
-- preemptive scheduling 
+- preemptive scheduling
  - Basic heart beat at 1 kHz. SNOT can have heeartbeat in quants of milli seconds
  - static preemptivepriority scheme
 -  support task, semaphores, message queues
@@ -97,7 +97,7 @@ Accuracy
  - timers default
   - all except MEGA use timer 1 ( 8 bit)
   - MEGAs (1280/2560) use timer 5
-  - you can change it in krnl.h 
+  - you can change it in krnl.h
 
 ### timer quants  (heartbeat)
 k_start accepts 1..10 and 20,30,40,...10000 milliseconds timer quants
@@ -111,20 +111,20 @@ The user can provide two functions which will be called when a semaphore/msgQ ar
 ### warning / info
 ... from http://arduino-info.wikispaces.com/Timers-Arduino
 
-- Servo Library uses Timer1. 
-- -  You can’t use PWM on Pin 9, 10 when you use the Servo Library on an Arduino. 
-- -  For Arduino Mega it is a bit more difficult. The timer needed depends on the number of servos. 
-- -  Each timer can handle 12 servos. 
-- -  For the first 12 servos timer 5 will be used (losing PWM on Pin 44,45,46). 
-- -  For 24 Servos timer 5 and 1 will be used (losing PWM on Pin 11,12,44,45,46).. 
-- -  For 36 servos timer 5, 1 and 3 will be used (losing PWM on Pin 2,3,5,11,12,44,45,46).. 
+- Servo Library uses Timer1.
+- -  You can’t use PWM on Pin 9, 10 when you use the Servo Library on an Arduino.
+- -  For Arduino Mega it is a bit more difficult. The timer needed depends on the number of servos.
+- -  Each timer can handle 12 servos.
+- -  For the first 12 servos timer 5 will be used (losing PWM on Pin 44,45,46).
+- -  For 24 Servos timer 5 and 1 will be used (losing PWM on Pin 11,12,44,45,46)..
+- -  For 36 servos timer 5, 1 and 3 will be used (losing PWM on Pin 2,3,5,11,12,44,45,46)..
 - -  For 48 servos all 16bit timers 5,1,3 and 4 will be used (losing all PWM pins).
 
-- Pin 11 has shared functionality PWM and MOSI. 
-- -  MOSI is needed for the SPI interface, You can’t use PWM on Pin 11 and the SPI interface at the same time on Arduino. 
+- Pin 11 has shared functionality PWM and MOSI.
+- -  MOSI is needed for the SPI interface, You can’t use PWM on Pin 11 and the SPI interface at the same time on Arduino.
 - -  On the Arduino Mega the SPI pins are on different pins.
 
-- tone() function uses at least timer2. 
+- tone() function uses at least timer2.
 - -  You can’t use PWM on Pin 3,11 when you use the tone() function an Arduino and Pin 9,10 on Arduino Mega.
 
 -----
@@ -147,7 +147,7 @@ Normally (like on UNO) dig out 8-13 is on PORTB 0-6
 
 But on Leonardo it is different  dig 8-13 is 8-11 on PORTB 4-7, 12 on PORTD 6 and 13 on PORTC 7
 
-## Warning 
+## Warning
 You have from Arduino inherited many critical regions which you have to protect - like
 
 - Serial channels - only on thread at time must have access
