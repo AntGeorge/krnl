@@ -109,10 +109,10 @@ extern "C" {
 #define OCRxA OCR1A
 #define TIMSKx TIMSK1
 #define TOIEx TOIE1
-#define PRESCALE 0x04
-#define COUNTMAX 65535
-#define DIVV 62.5
-#define DIVV8 31.25
+#define PRESCALE 0x03
+#define COUNTMAX 0xffff 
+#define DIVV 250
+#define DIVV8 (DIVV/2)
 
 #elif (KRNLTMR == 2)
 
@@ -140,10 +140,10 @@ extern "C" {
 #define OCRxA OCR3A
 #define TIMSKx TIMSK3
 #define TOIEx TOIE3
-#define PRESCALE 0x04
-#define COUNTMAX 65535
-#define DIVV 62.5
-#define DIVV8 31.25
+#define PRESCALE 0x03
+#define COUNTMAX 0xffff 
+#define DIVV 250
+#define DIVV8 (DIVV/2)
 
 #elif (KRNLTMR == 4)
 
@@ -155,10 +155,10 @@ extern "C" {
 #define OCRxA OCR4A
 #define TIMSKx TIMSK4
 #define TOIEx TOIE4
-#define PRESCALE 0x04
-#define COUNTMAX 65535
-#define DIVV 62.5
-#define DIVV8 31.25
+#define PRESCALE 0x03
+#define COUNTMAX 0xffff
+#define DIVV 250
+#define DIVV8 (DIVV/2)
 
 #elif (KRNLTMR == 5)
 
@@ -170,10 +170,10 @@ extern "C" {
 #define OCRxA OCR5A
 #define TIMSKx TIMSK5
 #define TOIEx TOIE5
-#define PRESCALE 0x04
-#define COUNTMAX 65535
-#define DIVV 62.5
-#define DIVV8 31.25
+#define PRESCALE 0x03
+#define COUNTMAX 0xffff
+#define DIVV 250
+#define DIVV8 (DIVV/2)
 
 #else
 
@@ -1084,7 +1084,9 @@ k_start (int tm)
        -------------------------/64   = 250000 ticks/second !
 
        NB 16 bit counter so values >= 65535 is not working
-       ************************************************************************************** */
+       ************************************************************************************** 
+        
+       */
 
     // will not start if errors during initialization
     if (k_err_cnt) {
@@ -1117,10 +1119,14 @@ k_start (int tm)
 
     if (F_CPU == 16000000L) {
         tcntValue = COUNTMAX - tm * DIVV;
+
+        
     } else {
         tcntValue = COUNTMAX - tm * DIVV8;    // 8 Mhz wwe assume
     }
-
+        
+    tcntValue +=2;  // add magic water :-) dep on your xtal
+    
     TCNTx = tcntValue;
 
     //  let us start the show
