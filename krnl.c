@@ -1244,3 +1244,4 @@ void __attribute__ ((weak)) k_send_Q_clip (unsigned char nr, int nrClip)
 }
 #endif
 */
+

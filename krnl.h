@@ -3,7 +3,7 @@
 *  __  _    ___  ____   ____     ___  _              *
 * |  |/ ]  /  _]|    \ |    \   /  _]| |             *
 * |  ' /  /  [_ |  D  )|  _  | /  [_ | |             *
-* |    \ |    _]|    / |  |  ||    _]| |___          * 
+* |    \ |    _]|    / |  |  ||    _]| |___          *
 * |     ||   [_ |    \ |  |  ||   [_ |     |         *
 * |  .  ||     ||  .  \|  |  ||     ||     |         *
 * |__|\_||_____||__|\_||__|__||_____||_____|         *
@@ -15,9 +15,9 @@
 *      Author: jdn                                   *
 **                                                   *
 ******************************************************
-*            (simple not - not ?! :-) )              * 
+*            (simple not - not ?! :-) )              *
 * my own small KeRNeL adapted for Arduino            *
-*                                                    * 
+*                                                    *
 * previous known as KRNL                             *
 *                                                    *
 * this version adapted for Arduino                   *
@@ -36,18 +36,26 @@
 * with this stuff. If we meet some day, and you think*
 * this stuff is worth it ...                         *
 *  you can buy me a beer in return :-)               *
-* or if you are real happy then ...                  * 
+* or if you are real happy then ...                  *
 * single malt will be well received :-)              *
-*                                                    * 
+*                                                    *
 * Use it at your own risk - no warranty              *
-*                                                    * 
+*                                                    *
 * tested with duemilanove w/328, uno R3,             *
 * seeduino 1280 and mega2560                         *
 *****************************************************/
 // remember to update in krnl.c !!!
-#define KRNL_VRS 2002
+#define KRNL_VRS 201601
 
 /***********************
+
+NB NB ABOUT WRAP AROUND
+
+Krnl maintain a milisecond timer (k_millis_counter)
+It s 32 bit unsigned long so it wraps around after 49.7 days.
+As all timing internal in krnl is relative (from now) then
+wrap around will have no influence on krnl !!!
+
 NB NB ABOUT TIMERS PORTS ETC
 
 You can configure krnl to use timer 0,1,2,3,4,5
@@ -587,7 +595,7 @@ int k_signal (struct k_t *sem);
 * Signal a semaphore. Task shift will task place if a task is started by the signal and has higher priority than you.
 * you shall supply with priority for prio ceiling protocol
 * @param[in] sem semaphore handle
-* @param[in] prio NOT WORKING DONT USE CALL 
+* @param[in] prio NOT WORKING DONT USE CALL
 * @return 0: ok , -1: max value of semaphore reached
 * @remark The ki_ indicates that interrups is NOT enabled when leaving ki_signal
 * @remark only to be called after start of KRNL
@@ -611,7 +619,7 @@ int k_wait (struct k_t *sem, int timeout);
 * Wait on a semaphore. Task shift will task place if you are blocked.
 * you shall supply with priority for prio ceiling protocol
 * @param[in] sem semaphore handle
-* @param[in] prio NOT WORKING DONT USE CALL 
+* @param[in] prio NOT WORKING DONT USE CALL
 * @param[in] timeout "<0" you will be started after timeout ticks, "=0" wait forever "-1" you will not wait
 * @return 1, ok : no suspension, 0: ok you ahv ebeen sleeping, -1: timeout has occured, -2 no wait bq timeout was -1 and semaphore was negative
 * @remark only to be called after start of KRNL
