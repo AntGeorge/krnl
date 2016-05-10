@@ -62,7 +62,7 @@
 #pragma message ("krnl detected 8 MHz")
 #endif
 
-#if (KRNL_VRS != 2002)
+#if (KRNL_VRS != 201605)
 #error "KRNL VERSION NOT UPDATED in krnl.c /JDN"
 #endif
 
@@ -424,7 +424,7 @@ k_crt_task (void (*pTask) (void), char prio, char *pStk, int stkSize)
     *(s--) = 0x00;		// sreg
 
     //1280 and 2560 need to save rampz reg just in case
-#if defined (__AVR_ATmega2560__) || defined (__AVR_ATmega1280__)
+#if defined (__AVR_ATmega2560__) || defined (__AVR_ATmega1280__) || defined (__AVR_ATmega1284P__)
     *(s--) = RAMPZ;		// best guess
     *(s--) = EIND;		// best guess
 #endif

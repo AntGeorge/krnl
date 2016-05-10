@@ -45,7 +45,7 @@
 * seeduino 1280 and mega2560                         *
 *****************************************************/
 // remember to update in krnl.c !!!
-#define KRNL_VRS 201601
+#define KRNL_VRS 201605
 
 /***********************
 
@@ -124,7 +124,7 @@ SO BEWARE !!!
 #ifndef KRNL
 
 #define KRNL
-
+// __AVR_ATmega1284P__
 // if krnl shall support EDF scheduling
 #define EDF
 // DISPLAY OF PROCESS ID BY LEDS if you want to
@@ -141,7 +141,7 @@ SO BEWARE !!!
 * timer 5 (16 bit) 1280/2560 only (MEGA)
 */
 
-#if defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+#if defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined (__AVR_ATmega1284P__)
 #define KRNLTMR 5
 #else
 #define KRNLTMR 1
@@ -185,7 +185,7 @@ extern "C"
 
 #endif
 
-#if defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+#if defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined (__AVR_ATmega1284P__)
 
 #if (KRNLTMR != 0) && (KRNLTMR != 1) && (KRNLTMR != 2) && (KRNLTMR != 3) && (KRNLTMR != 4) && (KRNLTMR != 5)
 #error "bad timer for krnl heartbeat(1280/2560) in krnl"
@@ -333,7 +333,7 @@ if (pRun != AQ.next) {  \
 
 /* below: r1 must/shall always assumed to be zero in c code (gcc issue I think) */
 
-#if defined (__AVR_ATmega2560__) || defined (__AVR_ATmega1280__)
+#if defined (__AVR_ATmega2560__) || defined (__AVR_ATmega1280__) || defined(__AVR_ATmega1284P__)
 
 // 0x3b RAMPZ extended z-pointer register
 // 0x3c EIND extended indirect register
