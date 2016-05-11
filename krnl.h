@@ -11,7 +11,7 @@
 *                                                    *
 * krnl.h                                             *
 *                                                    *
-*      March 2015                                    *
+*      March 2015,2016                               *
 *      Author: jdn                                   *
 **                                                   *
 ******************************************************
@@ -42,10 +42,10 @@
 * Use it at your own risk - no warranty              *
 *                                                    *
 * tested with duemilanove w/328, uno R3,             *
-* seeduino 1280 and mega2560                         *
+* seeduino 1280 and mega2560    1284p and 2561       *
 *****************************************************/
 // remember to update in krnl.c !!!
-#define KRNL_VRS 2016051
+#define KRNL_VRS 2016052
 
 /***********************
 
@@ -178,7 +178,7 @@ extern "C"
 #define ARCH_SLCT 4
 #elif defined (__AVR_ATmega1284P__)
 #define ARCH_SLCT 5
-#elif defined(__AVR_ATmega2560__)
+#elif defined(__AVR_ATmega2560__) || defined(__AVR_ATmega2561__)
 #define ARCH_SLCT 6
 #else
 #error Failing due to unknown architecture - krnl
@@ -193,7 +193,7 @@ extern "C"
 
 #endif
 
-#if defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+#if defined (__AVR_ATmega1280__)  || defined(__AVR_ATmega2560__) || defined(__AVR_ATmega2561__)
 
 #if (KRNLTMR != 0) && (KRNLTMR != 1) && (KRNLTMR != 2) && (KRNLTMR != 3) && (KRNLTMR != 4) && (KRNLTMR != 5)
 #error "bad timer for krnl heartbeat(1280/2560) in krnl"
@@ -343,18 +343,18 @@ if (pRun != AQ.next) {  \
 
 // MISSING no code 1284p
 
-#define DI()   asm volatile ("cli")
-#define EI()   asm volatile ("sei")
-#define RETI() asm volatile ("reti")
+#define DI()   __asm__ volatile ("cli")
+#define EI()   __asm__ volatile ("sei")
+#define RETI() __asm__ volatile ("reti")
 
 /* below: r1 must/shall always assumed to be zero in c code (gcc issue I think) */
 
-#if defined (__AVR_ATmega2560__) || defined (__AVR_ATmega1280__)
+#if defined (__AVR_ATmega2560__) || defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2561__)
 
 // 0x3b RAMPZ extended z-pointer register
 // 0x3c EIND extended indirect register
 
-#define PUSHREGS() asm volatile ( \
+#define PUSHREGS() __asm__ volatile ( \
 "push r1  \n\t" \
 "push r0  \n\t" \
 "in r0, __SREG__ \n\t" \
@@ -397,7 +397,7 @@ if (pRun != AQ.next) {  \
 "push r31 \n\t" \
 )
 
-#define POPREGS() asm volatile ( \
+#define POPREGS() __asm__ volatile ( \
 "pop r31 \n\t" \
 "pop r30 \n\t" \
 "pop r29 \n\t" \
@@ -443,7 +443,7 @@ if (pRun != AQ.next) {  \
 // 0x3b RAMPZ extended z-pointer register
 // 0x3c EIND extended indirect register
 
-#define PUSHREGS() asm volatile ( \
+#define PUSHREGS() __asm__ volatile ( \
 "push r1  \n\t" \
 "push r0  \n\t" \
 "in r0, __SREG__ \n\t" \
@@ -484,7 +484,7 @@ if (pRun != AQ.next) {  \
 "push r31 \n\t" \
 )
 
-#define POPREGS() asm volatile ( \
+#define POPREGS() __asm__ volatile ( \
 "pop r31 \n\t" \
 "pop r30 \n\t" \
 "pop r29 \n\t" \
@@ -525,7 +525,7 @@ if (pRun != AQ.next) {  \
 
 #else
 // 328p etc
-#define PUSHREGS() asm volatile ( \
+#define PUSHREGS() __asm__ volatile ( \
 "push r1 \n\t" \
 "push r0 \n\t" \
 "in r0, __SREG__ \n\t" \
@@ -564,7 +564,7 @@ if (pRun != AQ.next) {  \
 "push r31 \n\t" \
 )
 
-#define POPREGS() asm volatile ( \
+#define POPREGS() __asm__ volatile ( \
 "pop r31 \n\t" \
 "pop r30 \n\t" \
 "pop r29 \n\t" \
@@ -601,7 +601,7 @@ if (pRun != AQ.next) {  \
 "pop r1  \n\t" \
 )
 
-#endif				// 1280/2560
+#endif				
 
 // function prototypes
 // naming convention

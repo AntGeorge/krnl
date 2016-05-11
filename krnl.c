@@ -15,6 +15,7 @@
 *                                                    *
 *  June,               2014                          *
 *  Feb                 2015                          *
+*                      2016                          *
 *      Author: jdn                                   *
 *                                                    *
 ******************************************************
@@ -62,7 +63,7 @@
 #pragma message ("krnl detected 8 MHz")
 #endif
 
-#if (KRNL_VRS != 2016051)
+#if (KRNL_VRS != 2016052)
 #error "KRNL VERSION NOT UPDATED in krnl.c "
 #endif
 
