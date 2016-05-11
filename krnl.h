@@ -133,7 +133,7 @@ SO BEWARE !!!
 #define EDF
 // DISPLAY OF PROCESS ID BY LEDS if you want to
 #define KRNLBUG
-
+ 
 // USER CONFIGURATION PART
 
 /* which timer to use for krnl heartbeat
@@ -144,12 +144,12 @@ SO BEWARE !!!
 * timer 4 (16 bit) 1280/2560 only (MEGA)
 * timer 5 (16 bit) 1280/2560 only (MEGA)
 */
-
+ 
 #if defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(__AVR_ATmega2561__)  
 #define KRNLTMR 5
 #elif defined (__AVR_ATmega1284P__)
 #define KRNLTMR 3
-#else
+#elif defined (__AVR_ATmega328P__)  || defined (__AVR_ATmega32U4__)
 #define KRNLTMR 1
 #endif
 // END USER CONFIGURATION
@@ -170,7 +170,7 @@ extern "C"
 
 #if defined(__AVR_ATmega168__)
 #define ARCH_SLCT 1
-#elif defined(__AVR_ATmega328P__) || defined(__AVR_ATmega328__)
+#elif defined(__AVR_ATmega328P__) || defined(__AVR_ATmega328__) 
 #define ARCH_SLCT 2
 #elif defined(__AVR_ATmega32U4__)
 #define ARCH_SLCT 3
@@ -180,6 +180,8 @@ extern "C"
 #define ARCH_SLCT 5
 #elif defined(__AVR_ATmega2560__) || defined(__AVR_ATmega2561__)
 #define ARCH_SLCT 6
+#elif defined (__AVR_ATmega32U4__)
+#define ARCH_SLCT 7
 #else
 #error Failing due to unknown architecture - krnl
 #endif
@@ -523,7 +525,8 @@ if (pRun != AQ.next) {  \
 "pop r1  \n\t" \
 )
 
-#else
+#elif  defined(__AVR_ATmega168__) || defined(__AVR_ATmega328P__) || defined(__AVR_ATmega328__) || defined(__AVR_ATmega32U4__)
+
 // 328p etc
 #define PUSHREGS() __asm__ volatile ( \
 "push r1 \n\t" \
@@ -601,6 +604,8 @@ if (pRun != AQ.next) {  \
 "pop r1  \n\t" \
 )
 
+#else
+#error "unknown arch"
 #endif				
 
 // function prototypes
