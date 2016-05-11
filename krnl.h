@@ -45,7 +45,7 @@
 * seeduino 1280 and mega2560                         *
 *****************************************************/
 // remember to update in krnl.c !!!
-#define KRNL_VRS 201605
+#define KRNL_VRS 201605a
 
 /***********************
 
@@ -78,19 +78,23 @@ Timer0:
 - In the Arduino world the Servo library uses Timer1 on Arduino Uno (Timer5 on Arduino Mega).
 
 Timer2:
-- Timer2 is a 8bit timer like Timer0.
+ - Timer2 is a 8bit timer like Timer0.
  -In the Arduino work the tone() function uses Timer2.
 
-Timer3, Timer4, Timer5: Timer 3,4,5 are only available on Arduino Mega boards.
-fe- These timers are all 16bit timers.
+Timer3 16 bits
+- 1280/1284P and 2560 only
 
-
+Timer4, Timer5 16 bits
+- 1280 and 2560 only
+ 
 On Uno
 - Pins 5 and 6: controlled by timer0
 - Pins 9 and 10: controlled by timer1
 - Pins 11 and 3: controlled by timer2
 
 On the Arduino Mega we have 6 timers and 15 PWM outputs:
+
+TODO pinout below need checkup
 
 - Pins 4 and 13: controlled by timer0
 - Pins 11 and 12: controlled by timer1
@@ -136,13 +140,15 @@ SO BEWARE !!!
 * timer 0 ( 8 bit) is normally used by millis - avoid !
 * timer 1 (16 bit)  DEFAULT
 * timer 2 ( 8 bit)
-* timer 3 (16 bit) 1280/2560 only (MEGA)
+* timer 3 (16 bit) 1280/1284p/2560 only (MEGA)
 * timer 4 (16 bit) 1280/2560 only (MEGA)
 * timer 5 (16 bit) 1280/2560 only (MEGA)
 */
 
-#if defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined (__AVR_ATmega1284P__)
+#if defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) 
 #define KRNLTMR 5
+#elif defined (__AVR_ATmega1284P__)
+#define KRNLTMR 3
 #else
 #define KRNLTMR 1
 #endif
@@ -170,6 +176,8 @@ extern "C"
 #define ARCH_SLCT 3
 #elif defined (__AVR_ATmega1280__)
 #define ARCH_SLCT 4
+#elif defined (__AVR_ATmega1284P__)
+#define ARCH_SLCT 5
 #elif defined(__AVR_ATmega2560__)
 #define ARCH_SLCT 6
 #else
@@ -185,7 +193,7 @@ extern "C"
 
 #endif
 
-#if defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined (__AVR_ATmega1284P__)
+#if defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
 
 #if (KRNLTMR != 0) && (KRNLTMR != 1) && (KRNLTMR != 2) && (KRNLTMR != 3) && (KRNLTMR != 4) && (KRNLTMR != 5)
 #error "bad timer for krnl heartbeat(1280/2560) in krnl"
@@ -283,8 +291,8 @@ extern volatile char k_err_cnt;	// every time an error occurs cnt is incr by one
  * 0x3f SREG
  * 0x3e SPH
  * 0x3d SPL
- * 0x3c EIND
- * 0x3b RAMPZ
+ * 0x3c EIND  1280/2560 only 
+ * 0x3b RAMPZ  1280/2560/1284p only
  * ...
  * 0x1f R31
  * etc
@@ -333,7 +341,7 @@ if (pRun != AQ.next) {  \
 
 /* below: r1 must/shall always assumed to be zero in c code (gcc issue I think) */
 
-#if defined (__AVR_ATmega2560__) || defined (__AVR_ATmega1280__) || defined(__AVR_ATmega1284P__)
+#if defined (__AVR_ATmega2560__) || defined (__AVR_ATmega1280__)
 
 // 0x3b RAMPZ extended z-pointer register
 // 0x3c EIND extended indirect register
@@ -422,8 +430,93 @@ if (pRun != AQ.next) {  \
 "pop r1  \n\t" \
 )
 
-#else
+#elif defined ( __AVR_ATmega1284P__)
 
+// 0x3b RAMPZ extended z-pointer register
+// 0x3c EIND extended indirect register
+
+#define PUSHREGS() asm volatile ( \
+"push r1  \n\t" \
+"push r0  \n\t" \
+"in r0, __SREG__ \n\t" \
+"cli \n\t" \
+"push r0  \n\t" \
+"in r0 , 0x3b \n\t" \
+"push r0 \n\t" \
+"clr r1 \n\t" \
+"push r2  \n\t" \
+"push r3  \n\t" \
+"push r4  \n\t" \
+"push r5  \n\t" \
+"push r6  \n\t" \
+"push r7  \n\t" \
+"push r8  \n\t" \
+"push r9  \n\t" \
+"push r10 \n\t" \
+"push r11 \n\t" \
+"push r12 \n\t" \
+"push r13 \n\t" \
+"push r14 \n\t" \
+"push r15 \n\t" \
+"push r16 \n\t" \
+"push r17 \n\t" \
+"push r18 \n\t" \
+"push r19 \n\t" \
+"push r20 \n\t" \
+"push r21 \n\t" \
+"push r22 \n\t" \
+"push r23 \n\t" \
+"push r24 \n\t" \
+"push r25 \n\t" \
+"push r26 \n\t" \
+"push r27 \n\t" \
+"push r28 \n\t" \
+"push r29 \n\t" \
+"push r30 \n\t" \
+"push r31 \n\t" \
+)
+
+#define POPREGS() asm volatile ( \
+"pop r31 \n\t" \
+"pop r30 \n\t" \
+"pop r29 \n\t" \
+"pop r28 \n\t" \
+"pop r27 \n\t" \
+"pop r26 \n\t" \
+"pop r25 \n\t" \
+"pop r24 \n\t" \
+"pop r23 \n\t" \
+"pop r22 \n\t" \
+"pop r21 \n\t" \
+"pop r20 \n\t" \
+"pop r19 \n\t" \
+"pop r18 \n\t" \
+"pop r17 \n\t" \
+"pop r16 \n\t" \
+"pop r15 \n\t" \
+"pop r14 \n\t" \
+"pop r13 \n\t" \
+"pop r12 \n\t" \
+"pop r11 \n\t" \
+"pop r10 \n\t" \
+"pop r9  \n\t" \
+"pop r8  \n\t" \
+"pop r7  \n\t" \
+"pop r6  \n\t" \
+"pop r5  \n\t" \
+"pop r4  \n\t" \
+"pop r3  \n\t" \
+"pop r2  \n\t" \
+"pop r0  \n\t" \
+"out 0x3b , r0 \n\t " \
+"pop r0  \n\t" \
+"out __SREG__ , r0 \n\t " \
+"pop r0  \n\t" \
+"pop r1  \n\t" \
+)
+
+#else
+// 328p etc
 #define PUSHREGS() asm volatile ( \
 "push r1 \n\t" \
 "push r0 \n\t" \

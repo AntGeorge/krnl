@@ -62,8 +62,8 @@
 #pragma message ("krnl detected 8 MHz")
 #endif
 
-#if (KRNL_VRS != 201605)
-#error "KRNL VERSION NOT UPDATED in krnl.c /JDN"
+#if (KRNL_VRS != 201605a)
+#error "KRNL VERSION NOT UPDATED in krnl.c "
 #endif
 
 /*
@@ -77,7 +77,7 @@ extern "C" {
 * timer 0 ( 8 bit) is normally used by millis - avoid !
 * timer 1 (16 bit)  DEFAULT
 * timer 2 ( 8 bit)
-* timer 3 (16 bit) 1280/2560 only (MEGA)
+* timer 3 (16 bit) 1280/1284P/2560 only (MEGA)
 * timer 4 (16 bit) 1280/2560 only (MEGA)
 * timer 5 (16 bit) 1280/2560 only (MEGA)
 */
@@ -413,7 +413,7 @@ k_crt_task (void (*pTask) (void), char prio, char *pStk, int stkSize)
 
     // NB  NB 2560 use 3 byte for call/ret addresses the rest only 2
 #if defined (__AVR_ATmega2560__)
-    *(s--) = EIND;		// best guess : 3 byte addresses !!!
+    *(s--) = EIND;		// best guess : 3 byte addresses !!! or just 0
 #endif
 
 // r1 is the socalled zero value register
@@ -426,7 +426,7 @@ k_crt_task (void (*pTask) (void), char prio, char *pStk, int stkSize)
     //1280 and 2560 need to save rampz reg just in case
 #if defined (__AVR_ATmega2560__) || defined (__AVR_ATmega1280__) || defined (__AVR_ATmega1284P__)
     *(s--) = RAMPZ;		// best guess
-    *(s--) = EIND;		// best guess
+    //JDN    *(s--) = EIND;		// best guess
 #endif
 
     for (i = 0; i < 30; i++) {	//r2-r31 = 30 regs

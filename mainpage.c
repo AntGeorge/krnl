@@ -5,7 +5,7 @@
  * my own small KeRNeL adapted for Arduino - now known as KRNL
 * (old name was SNOT)
  *
- * (C) 2012,2013,2014
+ * (C) 2012,2013,2014.2015.2016
  *
  * Jens Dalsgaard Nielsen <jdn@es.aau.dk>
  * http://www.control.aau.dk/~jdn

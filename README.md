@@ -81,8 +81,12 @@ The Arduino has 3 or 6 timers (Mega has 6 the rest has 3)
 - Timer2 is a 8bit timer like Timer0.
 - In the Arduino work the tone() function uses Timer2.
 
-### timer3, timer4, timer5
-- timer 3,4,5 are only available on Arduino Mega boards.
+### timer3,
+- timer 3 are only available on Arduino Mega boards.
+- 1280/1284P and 2560 only 
+
+### timer4, timer5
+- timer 4,5 are only available on Arduino Mega boards. 1280/2560
 - These timers are all 16bit timers.
 
 - krnl can be configures to use tmr 1,2 and for mega also 3,4,5 for running krnl tick
@@ -99,6 +103,7 @@ Accuracy
  - timers default
   - all except MEGA use timer 1 ( 8 bit)
   - MEGAs (1280/2560) use timer 5
+  - 1284P uses timer 3
   - you can change it in krnl.h
 
 ### timer quants  (heartbeat)
