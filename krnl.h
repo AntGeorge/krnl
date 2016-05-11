@@ -145,7 +145,7 @@ SO BEWARE !!!
 * timer 5 (16 bit) 1280/2560 only (MEGA)
 */
 
-#if defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) 
+#if defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(__AVR_ATmega2561__)  
 #define KRNLTMR 5
 #elif defined (__AVR_ATmega1284P__)
 #define KRNLTMR 3

@@ -413,7 +413,7 @@ k_crt_task (void (*pTask) (void), char prio, char *pStk, int stkSize)
     *(s--) = hi8 (pTask);	// which is code body for task
 
     // NB  NB 2560 use 3 byte for call/ret addresses the rest only 2
-#if defined (__AVR_ATmega2560__)
+#if defined (__AVR_ATmega2560__) || defined(__AVR_ATmega2561__) 
     *(s--) = EIND;		// best guess : 3 byte addresses !!! or just 0
 #endif
 
@@ -425,13 +425,13 @@ k_crt_task (void (*pTask) (void), char prio, char *pStk, int stkSize)
     *(s--) = 0x00;		// sreg
 
     //1280 and 2560 need to save rampz reg just in case
-#if defined (__AVR_ATmega2560__) || defined (__AVR_ATmega1280__) || defined (__AVR_ATmega1284P__)
+#if defined (__AVR_ATmega2560__) || defined (__AVR_ATmega1280__) || defined (__AVR_ATmega1284P__) || defined(__AVR_ATmega2561__) 
     *(s--) = RAMPZ;		// best guess  0x3b
     //JDN    *(s--) = EIND;		// best guess
 #endif
 
 
-#if defined (__AVR_ATmega2560__) || defined (__AVR_ATmega1280__) 
+#if defined (__AVR_ATmega2560__) || defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2561__) 
     *(s--) = EIND;		// best guess 0x3c
 #endif
 
