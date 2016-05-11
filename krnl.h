@@ -45,7 +45,7 @@
 * seeduino 1280 and mega2560                         *
 *****************************************************/
 // remember to update in krnl.c !!!
-#define KRNL_VRS 201605a
+#define KRNL_VRS 2016051
 
 /***********************
 
@@ -197,6 +197,14 @@ extern "C"
 
 #if (KRNLTMR != 0) && (KRNLTMR != 1) && (KRNLTMR != 2) && (KRNLTMR != 3) && (KRNLTMR != 4) && (KRNLTMR != 5)
 #error "bad timer for krnl heartbeat(1280/2560) in krnl"
+#endif
+
+#endif
+
+#if defined (__AVR_ATmega1284P__)  
+
+#if (KRNLTMR != 0) && (KRNLTMR != 1) && (KRNLTMR != 2) && (KRNLTMR != 3) 
+#error "bad timer for krnl heartbeat(1284P) in krnl"
 #endif
 
 #endif

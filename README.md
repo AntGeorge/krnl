@@ -6,6 +6,7 @@ I have found it interesting to develop an open source realtime kernel for the Ar
 
 support avr mega: 328p, 1280, 1284p and 2560
 
+PLEASE GO FURTHER DOWN for external interrupt handling ...
 
 changes about clip of semaphores so Liy & Layland RMA is detectable (when it fails deadlines)
 
@@ -110,6 +111,28 @@ Accuracy
 k_start accepts 1..10 and 20,30,40,...10000 milliseconds timer quants
 So you can not run krnl with an internal timer at 16 msec
 You can change it in k_start but be aware of implications of 8/16 bit timer usage
+
+External Interrupts and registers
+
+1284P : EICRA register  and EIMSK  (enable interrupt register)
+example:   INT0
+  EIMSK |= (1 << INT0);  // enable external intr on INT0
+  EICRA |= (1 << ISC01); // trigger INT0 on falling edge   
+  EICRA |= (1 << ISC00); //
+   
+EICRA handles INT0.. INT3  (two byte each
+EICRB handles INT4..INT7 (two bytes each)
+
+NOT ALL Arduinos supports all external interrupts 
+
+UNO: INT0, INT1 (
+1284P INT0(rx1) INT1(tx1) INT2(ain0)
+1280/2560 INT0..INT7 EICRA for INT0-3 and EICRB for INT 4-7
+32u4 INT0(i2c:scl) INT1(i2c:sda) INT2(rx1) INT3(tx1)
+1280, 2560 INT0(i2c:scl) INT1(i2c:sda) INT2(rx1) INT3(tx1) IN4-7 on port PE4-PE7
+see also http://www.nongnu.org/avr-libc/user-manual/group__avr__interrupts.html
+
+
 
 
 ### Overflow detection
