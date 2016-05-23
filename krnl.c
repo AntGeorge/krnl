@@ -73,7 +73,6 @@ extern "C" {
 #endif
 */
 
-
 /* which timer to use for krnl heartbeat
 * timer 0 ( 8 bit) is normally used by millis - avoid !
 * timer 1 (16 bit)  DEFAULT
@@ -111,7 +110,7 @@ extern "C" {
 #define TIMSKx TIMSK1
 #define TOIEx TOIE1
 #define PRESCALE 0x03
-#define COUNTMAX 0xffff 
+#define COUNTMAX 0xffff
 #define DIVV 250
 #define DIVV8 (DIVV/2)
 
@@ -142,7 +141,7 @@ extern "C" {
 #define TIMSKx TIMSK3
 #define TOIEx TOIE3
 #define PRESCALE 0x03
-#define COUNTMAX 0xffff 
+#define COUNTMAX 0xffff
 #define DIVV 250
 #define DIVV8 (DIVV/2)
 
@@ -182,95 +181,89 @@ extern "C" {
 
 #endif
 
-
 //----------------------------------------------------------------------------
 
-struct k_t *task_pool,    // array of descriptors for tasks
-        *sem_pool,	      // .. for semaphores
-              AQ,				// Q head for active Q
-        *pmain_el,			// procesdecriptor for main
-        *pAQ,				// head of activeQ (AQ)
-        *pDmy,				// ref to dummy task
-        *pRun,				// who is running ?
-        *pSleepSem;			// one semaphor for all to sleep at
+struct k_t *task_pool,			// array of descriptors for tasks
+*sem_pool,						// .. for semaphores
+ AQ,							// Q head for active Q
+*pmain_el,						// procesdecriptor for main
+*pAQ,							// head of activeQ (AQ)
+*pDmy,							// ref to dummy task
+*pRun,							// who is running ?
+*pSleepSem;						// one semaphor for all to sleep at
 
-struct k_msg_t *send_pool;	// ptr to array for msg sem pool
+struct k_msg_t *send_pool;		// ptr to array for msg sem pool
 
-int k_task, k_sem, k_msg;	        // how many did you request in k_init of descriptors ?
+int k_task, k_sem, k_msg;		// how many did you request in k_init of descriptors ?
 char nr_task = 0, nr_sem = 0, nr_send = 0;	// counters for created KeRNeL items
 
 volatile char krnl_preempt_flag = 1;	//1: preempt, 0 : non preempt
 volatile char k_running = 0, k_err_cnt = 0;
 volatile unsigned int tcntValue;	// counters for timer system
-volatile int fakecnt,		        // counters for letting timer ISR go multipla faster than krnl timer
-         fakecnt_preset;		    // ...
+volatile int fakecnt,			// counters for letting timer ISR go multipla faster than krnl timer
+ fakecnt_preset;				// ...
 
-static volatile char stopp = 0;	    // main will loop on stop as dummy task
+static volatile char stopp = 0;	// main will loop on stop as dummy task
 
 unsigned long k_millis_counter = 0;
 unsigned int k_tick_size;
 
-int tmr_indx;			            // for travelling Qs in tmr isr
-
+int tmr_indx;					// for travelling Qs in tmr isr
 
 /**
  * just for eating time
  * eatTime in msec's
  */
-void
-k_eat_time (unsigned int eatTime)
+void k_eat_time(unsigned int eatTime)
 {
-        // _delay_us() performs busywait
-        while (eatTime > 10) {
-                eatTime -= 10;
-                _delay_us(10000);
-        }
+	// _delay_us() performs busywait
+	while (eatTime > 10) {
+		eatTime -= 10;
+		_delay_us(10000);
+	}
 
-        while (eatTime > 0) {
-                eatTime -= 1;
-                _delay_us(1000);
-        }
+	while (eatTime > 0) {
+		eatTime -= 1;
+		_delay_us(1000);
+	}
 }
 
 //---QOPS---------------------------------------------------------------------
 
-void
-enQ (struct k_t *Q, struct k_t *el)
+void enQ(struct k_t *Q, struct k_t *el)
 {
-    el->next = Q;
-    el->pred = Q->pred;
-    Q->pred->next = el;
-    Q->pred = el;
+	el->next = Q;
+	el->pred = Q->pred;
+	Q->pred->next = el;
+	Q->pred = el;
 }
 
 //----------------------------------------------------------------------------
 
-struct k_t *
-deQ (struct k_t *el)
+struct k_t *deQ(struct k_t *el)
 {
-    el->pred->next = el->next;
-    el->next->pred = el->pred;
+	el->pred->next = el->next;
+	el->next->pred = el->pred;
 
-    return (el);
+	return (el);
 }
 
 //----------------------------------------------------------------------------
 
-void
-prio_enQ (struct k_t *Q, struct k_t *el)
+void prio_enQ(struct k_t *Q, struct k_t *el)
 {
-    char prio = el->prio;
+	char prio = el->prio;
 
-    Q = Q->next;		// bq first elm is Q head itself
+	Q = Q->next;				// bq first elm is Q head itself
 
-    while (Q->prio <= prio) {	// find place before next with lower prio
-        Q = Q->next;
-    }
+	while (Q->prio <= prio) {	// find place before next with lower prio
+		Q = Q->next;
+	}
 
-    el->next = Q;
-    el->pred = Q->pred;
-    Q->pred->next = el;
-    Q->pred = el;
+	el->next = Q;
+	el->pred = Q->pred;
+	Q->pred->next = el;
+	Q->pred = el;
 }
 
 //---HW timer IRS-------------------------------------------------------------
@@ -292,68 +285,67 @@ prio_enQ (struct k_t *Q, struct k_t *el)
  */
 struct k_t *pE;
 
-
-ISR (KRNLTMRVECTOR, ISR_NAKED)
+ISR(KRNLTMRVECTOR, ISR_NAKED)
 {
 
-    PUSHREGS ();     // no local vars ! I think
+	PUSHREGS();					// no local vars ! I think
 
-    TCNTx = tcntValue;		// Reload the timer
+	TCNTx = tcntValue;			// Reload the timer
 
-    if (!k_running)
-        goto exitt;
+	if (!k_running)
+		goto exitt;
 
-    fakecnt--;			// for very slow k_start values
-                        //bq timer cant run so slow (8 bit timers at least)
-    if (0 < fakecnt)  	// how often shall we run KeRNeL timer code ?
-        goto exitt;
+	fakecnt--;					// for very slow k_start values
+	//bq timer cant run so slow (8 bit timers at least)
+	if (0 < fakecnt)			// how often shall we run KeRNeL timer code ?
+		goto exitt;
 
-    fakecnt = fakecnt_preset;	// now it's time for doing RT stuff
+	fakecnt = fakecnt_preset;	// now it's time for doing RT stuff
 
-    k_millis_counter += k_tick_size;	// my own millis counter
+	k_millis_counter += k_tick_size;	// my own millis counter
 
-    // the following may look crazy: to go through all semaphores and tasks
-    // but you may have 3-4 tasks and 3-6 semaphores in your code
-    // so - seems to be efficient :-)
-    // so - it's a good idea not to init krnl with more items
-    // (tasks/Sem/msg descriptors than needed)
+	// the following may look crazy: to go through all semaphores and tasks
+	// but you may have 3-4 tasks and 3-6 semaphores in your code
+	// so - seems to be efficient :-)
+	// so - it's a good idea not to init krnl with more items
+	// (tasks/Sem/msg descriptors than needed)
+
+	pE = sem_pool;				// Semaphore timer - check timers on semaphores - they may be cyclic
+
+	for (tmr_indx = 0; tmr_indx < nr_sem; tmr_indx++) {
+		if (0 < pE->cnt2) {		// timer on semaphore ?
+			pE->cnt2--;			// yep  decrement it
+			if (pE->cnt2 <= 0) {	// timeout  ?
+				pE->cnt2 = pE->cnt3;	// preset again - if cnt3 == 0 and >= 0 the rep timer
+				ki_signal(pE);	//issue a signal to the semaphore
+			}
+		}
+		pE++;
+	}
+
+	pE = task_pool;				// Chk timers on tasks - they may be one shoot waiting
+
+	for (tmr_indx = 0; tmr_indx < nr_task; tmr_indx++) {
+		if (0 < pE->cnt2) {		// timer active on task ?
+			pE->cnt2--;			// yep so let us do one down count
+			if (pE->cnt2 <= 0) {	// timeout ? ( == 0 )
+				((struct k_t *)(pE->cnt3))->cnt1++;	// leaving sem so adjust semcount on sem
+				prio_enQ(pAQ, deQ(pE));	// and rip task of semQ and insert in activeQ
+				pE->cnt2 = -1;	// indicate timeout in this semQ
+			}
+		}
+		pE++;
+	}
 
 
-    pE = sem_pool;		// Semaphore timer - check timers on semaphores - they may be cyclic
+	if (krnl_preempt_flag) {
+		prio_enQ(pAQ, deQ(pRun));	// round robbin
+		K_CHG_STAK();
+	}
 
-    for (tmr_indx = 0; tmr_indx < nr_sem; tmr_indx++) {
-        if (0 < pE->cnt2) {	// timer on semaphore ?
-            pE->cnt2--;		// yep  decrement it
-            if (pE->cnt2 <= 0) {	// timeout  ?
-                pE->cnt2 = pE->cnt3;	// preset again - if cnt3 == 0 and >= 0 the rep timer
-                ki_signal (pE);	//issue a signal to the semaphore
-            }
-        }
-        pE++;
-    }
-
-    pE = task_pool;		// Chk timers on tasks - they may be one shoot waiting
-
-    for (tmr_indx = 0; tmr_indx < nr_task; tmr_indx++) {
-        if (0 < pE->cnt2) {	// timer active on task ?
-            pE->cnt2--;		// yep so let us do one down count
-            if (pE->cnt2 <= 0) {	// timeout ? ( == 0 )
-              ((struct k_t *)(pE->cnt3))->cnt1++;  // leaving sem so adjust semcount on sem
-              prio_enQ(pAQ,deQ(pE));               // and rip task of semQ and insert in activeQ
-              pE->cnt2 = -1;	// indicate timeout in this semQ
-            }
-        }
-        pE++;
-    }
-
-    if (krnl_preempt_flag) {
-        prio_enQ (pAQ, deQ (pRun));	// round robbin
-        K_CHG_STAK ();
-    }
-
-exitt:
-    POPREGS ();
-    RETI ();
+ exitt:
+	POPREGS();
+	RETI();
 }
 
 //----------------------------------------------------------------------------
@@ -368,644 +360,609 @@ exitt:
 // and a lot other stuff
 // basic concept from my own very old kernels dated back bef millenium
 
-void __attribute__ ((naked, noinline)) ki_task_shift (void)
+void __attribute__ ((naked, noinline)) ki_task_shift(void)
 {
-    PUSHREGS ();		// push task regs on stak so we are rdy to task shift
-    K_CHG_STAK ();
-    POPREGS ();			// restore regs
-    RETI ();			// and do a reti NB this also enables interrupt !!!
+	PUSHREGS();					// push task regs on stak so we are rdy to task shift
+	K_CHG_STAK();
+	POPREGS();					// restore regs
+	RETI();						// and do a reti NB this also enables interrupt !!!
 }
 
 //----------------------------------------------------------------------------
-struct k_t *
-k_crt_task (void (*pTask) (void), char prio, char *pStk, int stkSize)
+struct k_t *k_crt_task(void (*pTask) (void), char prio, char *pStk, int stkSize)
 {
 
-    struct k_t *pT;
-    int i;
-    char *s;
+	struct k_t *pT;
+	int i;
+	char *s;
 
-    if ((k_running) || ((prio <= 0) || (DMY_PRIO < prio))
-            || (k_task <= nr_task)) {
-        goto badexit;
-    }
-    // let's go
-    pT = task_pool + nr_task;	// lets take a task descriptor
-    pT->nr = nr_task;
-    nr_task++;
+	if ((k_running) || ((prio <= 0) || (DMY_PRIO < prio))
+		|| (k_task <= nr_task)) {
+		goto badexit;
+	}
+	// let's go
+	pT = task_pool + nr_task;	// lets take a task descriptor
+	pT->nr = nr_task;
+	nr_task++;
 
-    pT->cnt2 = 0;		// no time out running on you for the time being
-    pT->cnt3 = 0;		// no time out semaphore
+	pT->cnt2 = 0;				// no time out running on you for the time being
+	pT->cnt3 = 0;				// no time out semaphore
 
+	pT->cnt1 = (int)(pStk);		// ref to my stack
 
-    pT->cnt1 = (int) (pStk);	// ref to my stack
+	// stack paint :-)
+	for (i = 0; i < stkSize; i++) {	// put hash code on stak to be used by k_unused_stak()
+		pStk[i] = STAK_HASH;
+	}
 
-    // stack paint :-)
-    for (i = 0; i < stkSize; i++) {	// put hash code on stak to be used by k_unused_stak()
-        pStk[i] = STAK_HASH;
-    }
+	s = pStk + stkSize - 1;		// now we point on top of stak
+	*(s--) = 0x00;				// 1 byte safety distance
+	// an interrupt do only push PC on stack by HW - can be 2 or 3 bytes
+	// depending of 368/.../1280/2560
+	*(s--) = lo8(pTask);		//  so top now holds address of function
+	*(s--) = hi8(pTask);		// which is code body for task
 
-    s = pStk + stkSize - 1;	// now we point on top of stak
-    *(s--) = 0x00;		// 1 byte safety distance
-    // an interrupt do only push PC on stack by HW - can be 2 or 3 bytes
-    // depending of 368/.../1280/2560
-    *(s--) = lo8 (pTask);	//  so top now holds address of function
-    *(s--) = hi8 (pTask);	// which is code body for task
-
-    // NB  NB 2560 use 3 byte for call/ret addresses the rest only 2
-#if defined (__AVR_ATmega2560__) || defined(__AVR_ATmega2561__) 
-    *(s--) = EIND;		// best guess : 3 byte addresses !!! or just 0
+	// NB  NB 2560 use 3 byte for call/ret addresses the rest only 2
+#if defined (__AVR_ATmega2560__) || defined(__AVR_ATmega2561__)
+	*(s--) = EIND;				// best guess : 3 byte addresses !!! or just 0
 #endif
 
 // r1 is the socalled zero value register
 // see https://gcc.gnu.org/wiki/avr-gcc
 // can tmp be non zero (multiplication etc)
-    *(s--) = 0x00;		// r1
-    *(s--) = 0x00;		// r0
-    *(s--) = 0x00;		// sreg
+	*(s--) = 0x00;				// r1
+	*(s--) = 0x00;				// r0
+	*(s--) = 0x00;				// sreg
 
-    //1280 and 2560 need to save rampz reg just in case
-#if defined (__AVR_ATmega2560__) || defined (__AVR_ATmega1280__) || defined (__AVR_ATmega1284P__) || defined(__AVR_ATmega2561__) 
-    *(s--) = RAMPZ;		// best guess  0x3b
-    //JDN    *(s--) = EIND;		// best guess
+	//1280 and 2560 need to save rampz reg just in case
+#if defined (__AVR_ATmega2560__) || defined (__AVR_ATmega1280__) || defined (__AVR_ATmega1284P__) || defined(__AVR_ATmega2561__)
+	*(s--) = RAMPZ;				// best guess  0x3b
+	//JDN    *(s--) = EIND;             // best guess
 #endif
 
-
-#if defined (__AVR_ATmega2560__) || defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2561__) 
-    *(s--) = EIND;		// best guess 0x3c
+#if defined (__AVR_ATmega2560__) || defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2561__)
+	*(s--) = EIND;				// best guess 0x3c
 #endif
 
-    for (i = 0; i < 30; i++) {	//r2-r31 = 30 regs
-        *(s--) = 0x00;
-    }
+	for (i = 0; i < 30; i++) {	//r2-r31 = 30 regs
+		*(s--) = 0x00;
+	}
 
-    pT->sp_lo = lo8 (s);	// now we just need to save stakptr
-    pT->sp_hi = hi8 (s);	// in thread descriptor
+	pT->sp_lo = lo8(s);			// now we just need to save stakptr
+	pT->sp_hi = hi8(s);			// in thread descriptor
 
-    // HW DEPENDENT PART - ENDE
+	// HW DEPENDENT PART - ENDE
 
-    pT->prio = prio;		// maxv for holding org prio for inheritance
-    pT->maxv = (int) prio;
-    prio_enQ (pAQ, pT);		// and put task in active Q
+	pT->prio = prio;			// maxv for holding org prio for inheritance
+	pT->maxv = (int)prio;
+	prio_enQ(pAQ, pT);			// and put task in active Q
 
-    return (pT);
+	return (pT);
 
-badexit:
-    k_err_cnt++;
-    return (NULL);
+ badexit:
+	k_err_cnt++;
+	return (NULL);
 }
 
 //----------------------------------------------------------------------------
 
-int
-freeRam (void)
+int freeRam(void)
 {
-    extern int __heap_start, *__brkval;
-    int v;
+	extern int __heap_start, *__brkval;
+	int v;
 
-    // ho
-    return ((int) &v -
-            (__brkval == 0 ? (int) &__heap_start : (int) __brkval));
+	// ho
+	return ((int)&v - (__brkval == 0 ? (int)&__heap_start : (int)__brkval));
 }
 
 //----------------------------------------------------------------------------
 
-int
-k_sleep (int time)
+int k_sleep(int time)
 {
-    return k_wait (pSleepSem, time);
+	return k_wait(pSleepSem, time);
 }
 
 //----------------------------------------------------------------------------
 
-int
-k_unused_stak (struct k_t *t)
+int k_unused_stak(struct k_t *t)
 {
-    int i = 0;
-    char *pstk;
+	int i = 0;
+	char *pstk;
 
-    if (t) {		// another task or yourself - NO CHK of validity !
-        pstk = (char *) (t->cnt1);
-    } else {
-        pstk = (char *) (pRun->cnt1);
-    }
+	if (t) {					// another task or yourself - NO CHK of validity !
+		pstk = (char *)(t->cnt1);
+	} else {
+		pstk = (char *)(pRun->cnt1);
+	}
 
-    DI ();
-    // look for stack paint
-    while (*pstk == STAK_HASH) {
-        pstk++;
-        i++;
-    }
-    EI ();
+	DI();
+	// look for stack paint
+	while (*pstk == STAK_HASH) {
+		pstk++;
+		i++;
+	}
+	EI();
 
-    return (i);
+	return (i);
 }
 
 //----------------------------------------------------------------------------
 
-int
-k_set_prio (char prio)
+int k_set_prio(char prio)
+
 {
-    int i;
+	int i;
 
-    if (!k_running) {
-        return (-1);
-    }
+	if (!k_running) {
+		return (-1);
+	}
 
-    DI ();
+	DI();
 
-    if ((prio <= 0) || (DMY_PRIO <= prio)) {
-        // not legal value my friend
-        EI ();
-        return (-2);
-    }
-    i = pRun->prio;
+	if ((prio <= 0) || (DMY_PRIO <= prio)) {
+		// not legal value my friend
+		EI();
+		return (-2);
+	}
+	i = pRun->prio;
 
-    pRun->prio = prio;
-    prio_enQ (pAQ, deQ (pRun));
-    ki_task_shift ();
+	pRun->prio = prio;
+	prio_enQ(pAQ, deQ(pRun));
+	ki_task_shift();
 
-    EI ();
+	EI();
 
-    return (i);
+	return (i);
 }
 
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
-struct k_t *
-k_crt_sem (char init_val, int maxvalue)
+struct k_t *k_crt_sem(char init_val, int maxvalue)
 {
 
-    struct k_t *sem;
+	struct k_t *sem;
 
-    if (k_running) {
-        return (NULL);
-    }
+	if (k_running) {
+		return (NULL);
+	}
 
-    if ((init_val < 0) || (32000 < init_val) || (maxvalue < -32000)
-            || (32000 < maxvalue)) {
-        goto badexit;
-    }
+	if ((init_val < 0) || (32000 < init_val) || (maxvalue < -32000)
+		|| (32000 < maxvalue)) {
+		goto badexit;
+	}
 
-    if (k_sem <= nr_sem) {
-        goto badexit;
-    }
+	if (k_sem <= nr_sem) {
+		goto badexit;
+	}
 
-    sem = sem_pool + nr_sem;
-    sem->nr = nr_sem;
-    nr_sem++;
+	sem = sem_pool + nr_sem;
+	sem->nr = nr_sem;
+	nr_sem++;
 
-    sem->cnt2 = 0;		// no timer running
-    sem->next = sem->pred = sem;
-    sem->prio = QHD_PRIO;
-    sem->cnt1 = init_val;
+	sem->cnt2 = 0;				// no timer running
+	sem->next = sem->pred = sem;
+	sem->prio = QHD_PRIO;
+	sem->cnt1 = init_val;
 
-    sem->maxv = maxvalue;
-    sem->clip = 0;
+	sem->maxv = maxvalue;
+	sem->clip = 0;
 
-    return (sem);
+	return (sem);
 
-badexit:
-    k_err_cnt++;
+ badexit:
+	k_err_cnt++;
 
-    return (NULL);
+	return (NULL);
 }
 
 //----------------------------------------------------------------------------
 
-int
-k_set_sem_timer (struct k_t *sem, int val)
+int k_set_sem_timer(struct k_t *sem, int val)
 {
 
-    // there is no k_stop_sem_timer fct just call with val== 0
+	// there is no k_stop_sem_timer fct just call with val== 0
 
-    if (val < 0) {
-        return (-1);    // bad value
-    }
+	if (val < 0) {
+		return (-1);			// bad value
+	}
 
-    DI ();
-    sem->cnt2 = sem->cnt3 = val;	// if 0 then timer is not running - so
-    EI ();
+	DI();
+	sem->cnt2 = sem->cnt3 = val;	// if 0 then timer is not running - so
+	EI();
 
-    return (0);
+	return (0);
 }
 
 //----------------------------------------------------------------------------
 
-int
-ki_signal (struct k_t *sem)
+int ki_signal(struct k_t *sem)
 {
-    DI ();			// just in case
-    if (sem->cnt1 < sem->maxv) {
-        goto normal;
-    }
+	DI();						// just in case
+	if (sem->cnt1 < sem->maxv) {
+		goto normal;
+	}
 
-    if (32000 > sem->clip) {
-        sem->clip++;
-    }
-
-
-    // here we are on bad clip failure no signal takes place
-    // signal is lost !!!
+	if (32000 > sem->clip) {
+		sem->clip++;
+	}
+	// here we are on bad clip failure no signal takes place
+	// signal is lost !!!
 #ifdef KRNLBUG
-    k_sem_clip (sem->nr, sem->clip);
+	k_sem_clip(sem->nr, sem->clip);
 #endif
-    return (-1);
+	return (-1);
 
-normal:
+ normal:
 
-    sem->cnt1++;		// Salute to Dijkstra
+	sem->cnt1++;				// Salute to Dijkstra
 
-    if (sem->cnt1 <= 0) {
-        sem->next->cnt2 = 0;	// return code == ok
-        prio_enQ (pAQ, deQ (sem->next));
-        return (0);
-    }
+	if (sem->cnt1 <= 0) {
+		sem->next->cnt2 = 0;	// return code == ok
+		prio_enQ(pAQ, deQ(sem->next));
+		return (0);
+	}
 
-    return (1); // just delivered a signal - no task was waiting
+	return (1);					// just delivered a signal - no task was waiting
 }
 
 //----------------------------------------------------------------------------
 
-int
-k_prio_signal (struct k_t *sem, char prio)
+int k_prio_signal(struct k_t *sem, char prio)
 {
-    int res;
+	int res;
 
-    DI ();
+	DI();
 
-    res = ki_signal (sem);
+	res = ki_signal(sem);
 
-    // set prio
-    pRun->prio = prio;
-    prio_enQ (pAQ, deQ (pRun));
+	// set prio
+	pRun->prio = prio;
+	prio_enQ(pAQ, deQ(pRun));
 
-    ki_task_shift ();
+	ki_task_shift();
 
-    EI ();
+	EI();
 
-    return (res);
+	return (res);
 }
 
 //----------------------------------------------------------------------------
 
-int
-k_signal (struct k_t *sem)
+int k_signal(struct k_t *sem)
 {
-    int res;
+	int res;
 
-    DI ();
+	DI();
 
-    res = ki_signal (sem);	// 1: ok no task to AQ, 0: ok task to AQ
+	res = ki_signal(sem);		// 1: ok no task to AQ, 0: ok task to AQ
 
-    if (res == 0) {
-        ki_task_shift ();    // bq maybe started task has higher prio than me
-    }
+	if (res == 0) {
+		ki_task_shift();		// bq maybe started task has higher prio than me
+	}
 
-    EI ();
+	EI();
 
-    return (res);
+	return (res);
 }
 
 //----------------------------------------------------------------------------
 
-int
-ki_wait (struct k_t *sem, int timeout)
+int ki_wait(struct k_t *sem, int timeout)
 {
 // used by msg system
-    DI ();
+	DI();
 
-    if (0 < sem->cnt1) {
-        sem->cnt1--;		// Salute to Dijkstra
-        return (1);		    // ok: 1 bq we are not suspended
-    }
+	if (0 < sem->cnt1) {
+		sem->cnt1--;			// Salute to Dijkstra
+		return (1);				// ok: 1 bq we are not suspended
+	}
 
-    if (timeout == -1) {	// no luck, dont want to wait so bye bye
-        return (-1);
-    }
-                            // from here we want to wait
-    pRun->cnt2 = timeout;	//  0 == wait forever
+	if (timeout == -1) {		// no luck, dont want to wait so bye bye
+		return (-1);
+	}
+	// from here we want to wait
+	pRun->cnt2 = timeout;		//  0 == wait forever
 
-    if (timeout) {
-        pRun->cnt3 = (int) sem;    // nasty keep ref to semaphore
-    }
-                            //  so we can be removed if timeout occurs
+	if (timeout) {
+		pRun->cnt3 = (int)sem;	// nasty keep ref to semaphore
+	}
+	//  so we can be removed if timeout occurs
 
-    sem->cnt1--;		    // Salute to Dijkstra
+	sem->cnt1--;				// Salute to Dijkstra
 
-    enQ (sem, deQ (pRun));
-    ki_task_shift ();
+	enQ(sem, deQ(pRun));
+	ki_task_shift();
 
-                            // back again - have semaphore received signal or timeout ?
-    pRun->cnt3 = 0;		    // reset ref to timer semaphore
+	// back again - have semaphore received signal or timeout ?
+	pRun->cnt3 = 0;				// reset ref to timer semaphore
 
-    return ((char) (pRun->cnt2));	// 0: ok, -1: timeout
+	return ((char)(pRun->cnt2));	// 0: ok, -1: timeout
 }
 
 //----------------------------------------------------------------------------
 
-int
-k_wait (struct k_t *sem, int timeout)
+int k_wait(struct k_t *sem, int timeout)
 {
 
-    int retval;
+	int retval;
 
-    retval = ki_wait (sem, timeout);
-    EI ();
-    return retval;		// 0: ok, -1: timeout
+	retval = ki_wait(sem, timeout);
+	EI();
+	return retval;				// 0: ok, -1: timeout
 }
 
 //----------------------------------------------------------------------------
-int
-k_wait_lost (struct k_t *sem, int timeout, int *lost)
+int k_wait_lost(struct k_t *sem, int timeout, int *lost)
 {
-    DI ();
-    if (lost != NULL) {
-        *lost = sem->clip;
-        sem->clip = 0;
-    }
-    return k_wait (sem, timeout);
+	DI();
+	if (lost != NULL) {
+		*lost = sem->clip;
+		sem->clip = 0;
+	}
+	return k_wait(sem, timeout);
 }
 
 //----------------------------------------------------------------------------
-int
-k_sem_signals_lost (struct k_t *sem)
+int k_sem_signals_lost(struct k_t *sem)
 {
-    int x;
+	int x;
 
-    DI ();
-    x = sem->clip;
-    sem->clip = 0;
-    EI ();
-    return x;
-}
-
-
-//----------------------------------------------------------------------------
-
-int
-k_prio_wait (struct k_t *sem, int timeout, char prio)
-{
-
-    int retval;
-
-    return -666;		// no rdy for use
-    // copy of ki_wait just with EI()'s before leaving
-    DI ();
-
-    if (0 < sem->cnt1) {	// lucky that we do not need to wait ?
-        sem->cnt1--;		// Salute to Dijkstra
-        // set prio
-        pRun->prio = prio;
-        // no need bq we are alrdy in front prio_enQ (pAQ, deQ (pRun));
-        EI ();
-        return (0);
-    }
-
-    if (timeout == -1) {	// no luck, dont want to wait so bye
-
-        EI ();
-        return (-2);
-    }
-    // from here we have to wait
-    pRun->cnt2 = timeout;	// if 0 then wait forever
-
-    if (timeout) {
-        pRun->cnt3 = (int) sem;    // nasty keep ref to semaphore,
-    }
-    //  so we can be removed if timeout occurs
-    sem->cnt1--;		// Salute to Dijkstra
-
-    enQ (sem, deQ (pRun));
-    ki_task_shift ();		// call enables interrupt on return
-    pRun->cnt3 = 0;		// reset ref to timer semaphore
-    retval = pRun->cnt2;
-    if (retval == 0) {
-        // set prio
-        pRun->prio = prio;
-        // no need prio_enQ (pAQ, deQ (pRun));
-    }
-
-    EI ();
-
-    return retval;		// 0: ok, -1: timeout
-}
-
-
-//----------------------------------------------------------------------------
-
-int
-ki_semval (struct k_t *sem)
-{
-
-    DI ();
-
-    return (sem->cnt1);
-}
-
-
-//----------------------------------------------------------------------------
-//----------------------------------------------------------------------------
-
-struct k_msg_t *
-k_crt_send_Q (int nr_el, int el_size, void *pBuf)
-{
-
-    struct k_msg_t *pMsg;
-
-    if (k_running) {
-        return (NULL);
-    }
-
-    if (k_msg <= nr_send) {
-        goto errexit;
-    }
-
-    if (k_sem <= nr_sem) {
-        goto errexit;
-    }
-
-    pMsg = send_pool + nr_send;
-    pMsg->nr = nr_send;		// I am element nr nr_send in msgQ pool
-    nr_send++;
-
-    pMsg->sem = k_crt_sem (0, nr_el);
-
-    if (pMsg->sem == NULL) {
-        goto errexit;
-    }
-
-    pMsg->pBuf = (char *) pBuf;
-    pMsg->r = pMsg->w = -1;
-    pMsg->el_size = el_size;
-    pMsg->nr_el = nr_el;
-    pMsg->lost_msg = 0;
-    pMsg->cnt = 0;		// count nr elm in Q
-
-    return (pMsg);
-
-errexit:
-    k_err_cnt++;
-    return (NULL);
+	DI();
+	x = sem->clip;
+	sem->clip = 0;
+	EI();
+	return x;
 }
 
 //----------------------------------------------------------------------------
 
-char
-ki_send (struct k_msg_t *pB, void *el)
+int k_prio_wait(struct k_t *sem, int timeout, char prio)
 {
 
-    int i;
-    char *pSrc, *pDst;
+	int retval;
 
-    if (pB->nr_el <= pB->cnt) {
-        // nope - no room for a putting new msg in Q ?
-        if (pB->lost_msg < 32000) {
-            pB->lost_msg++;
-        }
+	return -666;				// no rdy for use
+	// copy of ki_wait just with EI()'s before leaving
+	DI();
+
+	if (0 < sem->cnt1) {		// lucky that we do not need to wait ?
+		sem->cnt1--;			// Salute to Dijkstra
+		// set prio
+		pRun->prio = prio;
+		// no need bq we are alrdy in front prio_enQ (pAQ, deQ (pRun));
+		EI();
+		return (0);
+	}
+
+	if (timeout == -1) {		// no luck, dont want to wait so bye
+
+		EI();
+		return (-2);
+	}
+	// from here we have to wait
+	pRun->cnt2 = timeout;		// if 0 then wait forever
+
+	if (timeout) {
+		pRun->cnt3 = (int)sem;	// nasty keep ref to semaphore,
+	}
+	//  so we can be removed if timeout occurs
+	sem->cnt1--;				// Salute to Dijkstra
+
+	enQ(sem, deQ(pRun));
+	ki_task_shift();			// call enables interrupt on return
+	pRun->cnt3 = 0;				// reset ref to timer semaphore
+	retval = pRun->cnt2;
+	if (retval == 0) {
+		// set prio
+		pRun->prio = prio;
+		// no need prio_enQ (pAQ, deQ (pRun));
+	}
+
+	EI();
+
+	return retval;				// 0: ok, -1: timeout
+}
+
+//----------------------------------------------------------------------------
+
+int ki_semval(struct k_t *sem)
+{
+
+	DI();
+
+	return (sem->cnt1);
+}
+
+//----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
+
+struct k_msg_t *k_crt_send_Q(int nr_el, int el_size, void *pBuf)
+{
+
+	struct k_msg_t *pMsg;
+
+	if (k_running) {
+		return (NULL);
+	}
+
+	if (k_msg <= nr_send) {
+		goto errexit;
+	}
+
+	if (k_sem <= nr_sem) {
+		goto errexit;
+	}
+
+	pMsg = send_pool + nr_send;
+	pMsg->nr = nr_send;			// I am element nr nr_send in msgQ pool
+	nr_send++;
+
+	pMsg->sem = k_crt_sem(0, nr_el);
+
+	if (pMsg->sem == NULL) {
+		goto errexit;
+	}
+
+	pMsg->pBuf = (char *)pBuf;
+	pMsg->r = pMsg->w = -1;
+	pMsg->el_size = el_size;
+	pMsg->nr_el = nr_el;
+	pMsg->lost_msg = 0;
+	pMsg->cnt = 0;				// count nr elm in Q
+
+	return (pMsg);
+
+ errexit:
+	k_err_cnt++;
+	return (NULL);
+}
+
+//----------------------------------------------------------------------------
+
+char ki_send(struct k_msg_t *pB, void *el)
+{
+
+	int i;
+	char *pSrc, *pDst;
+
+	if (pB->nr_el <= pB->cnt) {
+		// nope - no room for a putting new msg in Q ?
+		if (pB->lost_msg < 32000) {
+			pB->lost_msg++;
+		}
 #ifdef KRNLBUG
-        k_send_Q_clip (pB->nr, pB->lost_msg);
+		k_send_Q_clip(pB->nr, pB->lost_msg);
 #endif
-        return (-1);		// nope
-    }
+		return (-1);			// nope
+	}
 
-    pB->cnt++;
+	pB->cnt++;
 
-    pSrc = (char *) el;
+	pSrc = (char *)el;
 
-    pB->w++;
-    if (pB->nr_el <= pB->w) {	// simple wrap around
-        pB->w = 0;
-    }
+	pB->w++;
+	if (pB->nr_el <= pB->w) {	// simple wrap around
+		pB->w = 0;
+	}
 
-    pDst = pB->pBuf + (pB->w * pB->el_size);	// calculate where we shall put msg in ringbuf
+	pDst = pB->pBuf + (pB->w * pB->el_size);	// calculate where we shall put msg in ringbuf
 
-    for (i = 0; i < pB->el_size; i++) {
-        // copy to Q
-        *(pDst++) = *(pSrc++);
-    }
+	for (i = 0; i < pB->el_size; i++) {
+		// copy to Q
+		*(pDst++) = *(pSrc++);
+	}
 
-    return (ki_signal (pB->sem));	// indicate a new msg is in Q
-
+	return (ki_signal(pB->sem));	// indicate a new msg is in Q
 
 }
 
 //----------------------------------------------------------------------------
 
-char
-k_send (struct k_msg_t *pB, void *el)
+char k_send(struct k_msg_t *pB, void *el)
 {
 
-    char res;
+	char res;
 
-    DI ();
+	DI();
+ 
+	if (res == 0) {				// if new task in AQ == someone was waiting for msg
+		ki_task_shift();
+	}
 
-    res = ki_send (pB, el);
+	EI();
 
-    if (res == 0) {	// if new task in AQ == someone was waiting for msg
-        ki_task_shift ();
-    }
-
-    EI ();
-
-    return (res);
+	return (res);
 }
 
 //----------------------------------------------------------------------------
 
-char
-ki_receive (struct k_msg_t *pB, void *el, int *lost_msg)
+char ki_receive(struct k_msg_t *pB, void *el, int *lost_msg)
 {
 
-    int i;
-    char r, *pSrc, *pDst;
+	int i;
+	char r, *pSrc, *pDst;
 
-    // can be called from ISR bq no blocking
-    DI ();			// just to be sure
+	// can be called from ISR bq no blocking
+	DI();						// just to be sure
 
-    if ((r = ki_wait (pB->sem, -1)) >= 0) {
+	if ((r = ki_wait(pB->sem, -1)) >= 0) {
 
-        pDst = (char *) el;
-        pB->r++;
-        pB->cnt--;		// got one
+		pDst = (char *)el;
+		pB->r++;
+		pB->cnt--;				// got one
 
-        if (pB->nr_el <= pB->r) {
-            pB->r = 0;
-        }
+		if (pB->nr_el <= pB->r) {
+			pB->r = 0;
+		}
 
-        pSrc = pB->pBuf + pB->r * pB->el_size;
+		pSrc = pB->pBuf + pB->r * pB->el_size;
 
-        for (i = 0; i < pB->el_size; i++) {
-            *(pDst++) = *(pSrc++);
-        }
-        if (lost_msg) {
-            *lost_msg = pB->lost_msg;
-            pB->lost_msg = 0;
-        }
-        return (r);		// yes
-    }
+		for (i = 0; i < pB->el_size; i++) {
+			*(pDst++) = *(pSrc++);
+		}
+		if (lost_msg) {
+			*lost_msg = pB->lost_msg;
+			pB->lost_msg = 0;
+		}
+		return (r);				// yes
+	}
 
-    return (-1);		// nothing for you my friend
+	return (-1);				// nothing for you my friend
 }
 
 //----------------------------------------------------------------------------
 
-char
-k_receive (struct k_msg_t *pB, void *el, int timeout, int *lost_msg)
+char k_receive(struct k_msg_t *pB, void *el, int timeout, int *lost_msg)
 {
 
-    int i;
-    char r, *pSrc, *pDst;
+	int i;
+	char r, *pSrc, *pDst;
 
-    DI ();
+	DI();
 
-    if (0 <= (r = ki_wait (pB->sem, timeout))) {
-        // ki_wait bq then intr is not enabled when coming back
-        pDst = (char *) el;
-        pB->r++;
-        pB->cnt--;		// got one
+	if (0 <= (r = ki_wait(pB->sem, timeout))) {
+		// ki_wait bq then intr is not enabled when coming back
+		pDst = (char *)el;
+		pB->r++;
+		pB->cnt--;				// got one
 
-        if (pB->nr_el <= pB->r) {
-            pB->r = 0;
-        }
+		if (pB->nr_el <= pB->r) {
+			pB->r = 0;
+		}
 
-        pSrc = pB->pBuf + pB->r * pB->el_size;
+		pSrc = pB->pBuf + pB->r * pB->el_size;
 
-        for (i = 0; i < pB->el_size; i++) {
-            *(pDst++) = *(pSrc++);
-        }
+		for (i = 0; i < pB->el_size; i++) {
+			*(pDst++) = *(pSrc++);
+		}
 
-        if (lost_msg) {
-            *lost_msg = pB->lost_msg;
-            pB->lost_msg = 0;
-        }
+		if (lost_msg) {
+			*lost_msg = pB->lost_msg;
+			pB->lost_msg = 0;
+		}
 
-        EI ();
-        return (r);		// 1 if no suspension bq msg was already present, 0: ok  if you have waited on msg
-    }
+		EI();
+		return (r);				// 1 if no suspension bq msg was already present, 0: ok  if you have waited on msg
+	}
 
-    EI ();
-    return (-1);		// nothing for you my friend
+	EI();
+	return (-1);				// nothing for you my friend
 }
-
 
 //----------------------------------------------------------------------------
 
-void
-k_round_robbin (void)
+void k_round_robbin(void)
 {
 
-    // reinsert running task in activeQ if round robbin is selected
-    DI ();
+	// reinsert running task in activeQ if round robbin is selected
+	DI();
 
-    prio_enQ (pAQ, deQ (pRun));
-    ki_task_shift ();
+	prio_enQ(pAQ, deQ(pRun));
+	ki_task_shift();
 
-    EI ();
+	EI();
 }
-
-
 
 //----------------------------------------------------------------------------
 
@@ -1018,227 +975,218 @@ dummy_task (void)
 
 //----------------------------------------------------------------------------
 
-int
-k_init (int nrTask, int nrSem, int nrMsg)
+int k_init(int nrTask, int nrSem, int nrMsg)
 {
 
-    if (k_running) {	// are you a fool ???
-        return (NULL);
-    }
+	if (k_running) {			// are you a fool ???
+		return (NULL);
+	}
 
-    k_task = nrTask + 1;	// +1 due to dummy
-    k_sem = nrSem + nrMsg + 1;	// due to that every msgQ has a builtin semaphore
-    k_msg = nrMsg + 1;		// to align so first user msgQ has index 1
-    nr_send++;			// to align so we waste one but ... better equal access
-    task_pool = (struct k_t *) malloc (k_task * sizeof (struct k_t));
-    sem_pool = (struct k_t *) malloc (k_sem * sizeof (struct k_t));
-    send_pool = (struct k_msg_t *) malloc (k_msg * sizeof (struct k_msg_t));
+	k_task = nrTask + 1;		// +1 due to dummy
+	k_sem = nrSem + nrMsg + 1;	// due to that every msgQ has a builtin semaphore
+	k_msg = nrMsg + 1;			// to align so first user msgQ has index 1
+	nr_send++;					// to align so we waste one but ... better equal access
+	task_pool = (struct k_t *)malloc(k_task * sizeof(struct k_t));
+	sem_pool = (struct k_t *)malloc(k_sem * sizeof(struct k_t));
+	send_pool = (struct k_msg_t *)malloc(k_msg * sizeof(struct k_msg_t));
 
-    // we dont accept any errors
-    if ((task_pool == NULL) || (sem_pool == NULL) || (send_pool == NULL)) {
-        k_err_cnt++;
-        goto leave;
-    }
-    // init AQ as empty double chained list
-    pAQ = &AQ;
-    pAQ->next = pAQ->pred = pAQ;
-    pAQ->prio = QHD_PRIO;
+	// we dont accept any errors
+	if ((task_pool == NULL) || (sem_pool == NULL) || (send_pool == NULL)) {
+		k_err_cnt++;
+		goto leave;
+	}
+	// init AQ as empty double chained list
+	pAQ = &AQ;
+	pAQ->next = pAQ->pred = pAQ;
+	pAQ->prio = QHD_PRIO;
 
-    // crt dummy
-    // JDN pDmy = k_crt_task (dummy_task, DMY_PRIO, dmy_stk, DMY_STK_SZ);
-    pmain_el = task_pool;
-    pmain_el->nr = 0;
-    nr_task++;
-    pmain_el->prio = DMY_PRIO;	// main is dummy
-    prio_enQ (pAQ, pmain_el);
+	// crt dummy
+	// JDN pDmy = k_crt_task (dummy_task, DMY_PRIO, dmy_stk, DMY_STK_SZ);
+	pmain_el = task_pool;
+	pmain_el->nr = 0;
+	nr_task++;
+	pmain_el->prio = DMY_PRIO;	// main is dummy
+	prio_enQ(pAQ, pmain_el);
 
-    pSleepSem = k_crt_sem (0, 2000);
+	pSleepSem = k_crt_sem(0, 2000);
 
-leave:
-    return k_err_cnt;
+ leave:
+	return k_err_cnt;
 }
 
 //-------------------------------------------------------------------------------------------
-int
-k_start (int tm)
+int k_start(int tm)
 {
-    /*
-       48,88,168,328, 1280,2560
-       timer 0 and 2 has same prescaler config:
+	/*
+	   48,88,168,328, 1280,2560
+	   timer 0 and 2 has same prescaler config:
 
-       0 0 0 No clock source (Timer/Counter stopped).
-       0 0 1 clk T2S /(No prescaling)
-       0 1 0 clk T2S /8 (From prescaler)      2000000 intr/sec at 1 downcount
-       0 1 1 clk T2S /32 (From prescaler)      500000 intr/sec ...
-       1 0 0 clk T2S /64 (From prescaler)      250000
-       1 0 1 clk T2S /128 (From prescaler)     125000
-       1 1 0 clk T 2 S /256 (From prescaler)    62500
-       1 1 1 clk T 2 S /1024 (From prescaler)   15625  eq 15.625 count down for 1 millisec so 255 counts ~= 80.32 milli sec timer
+	   0 0 0 No clock source (Timer/Counter stopped).
+	   0 0 1 clk T2S /(No prescaling)
+	   0 1 0 clk T2S /8 (From prescaler)      2000000 intr/sec at 1 downcount
+	   0 1 1 clk T2S /32 (From prescaler)      500000 intr/sec ...
+	   1 0 0 clk T2S /64 (From prescaler)      250000
+	   1 0 1 clk T2S /128 (From prescaler)     125000
+	   1 1 0 clk T 2 S /256 (From prescaler)    62500
+	   1 1 1 clk T 2 S /1024 (From prescaler)   15625  eq 15.625 count down for 1 millisec so 255 counts ~= 80.32 milli sec timer
 
-       timer 1(328+megas), 3,4,5(megas only)
-       1280, 2560,2561 has same prescaler config :
-       FOR 16 bits !
-       prescaler in cs2 cs1 cs0
-       0   0   0   none
-       0   0   1   /1 == none
-       0   1   0   /8     2000000 intr/sec
-       0   1   1   /64     250000 intr/sec
-       1   0   0   /256     62500 intr/sec
-       1   0   1   /1024    15625 intr/sec
-       16MHz Arduino -> 16000000/1024 =  15625 intr/second at one count
-       16MHz Arduino -> 16000000/256  =  62500 ticks/second
-       -------------------------/64   = 250000 ticks/second !
+	   timer 1(328+megas), 3,4,5(megas only)
+	   1280, 2560,2561 has same prescaler config :
+	   FOR 16 bits !
+	   prescaler in cs2 cs1 cs0
+	   0   0   0   none
+	   0   0   1   /1 == none
+	   0   1   0   /8     2000000 intr/sec
+	   0   1   1   /64     250000 intr/sec
+	   1   0   0   /256     62500 intr/sec
+	   1   0   1   /1024    15625 intr/sec
+	   16MHz Arduino -> 16000000/1024 =  15625 intr/second at one count
+	   16MHz Arduino -> 16000000/256  =  62500 ticks/second
+	   -------------------------/64   = 250000 ticks/second !
 
-       NB 16 bit counter so values >= 65535 is not working
-       ************************************************************************************** 
-        
-       */
+	   NB 16 bit counter so values >= 65535 is not working
+	   ************************************************************************************** 
 
-    // will not start if errors during initialization
-    if (k_err_cnt) {
-        return -k_err_cnt;
-    }
-    // boundary check
-    if (tm <= 0) {
-        return -555;
-    } else if (10 >= tm) {
-        fakecnt = fakecnt_preset = 0;	// on duty for every interrupt
-    } else if ((tm <= 10000) && (10 * (tm / 10) == tm)) {	// 20,30,40,50,...,10000
-        fakecnt_preset = fakecnt = tm / 10;
-        tm = 10;
-    } else {
-        return -666;
-    }
+	 */
 
-    DI ();			// silencio
-    k_tick_size = tm;
+	// will not start if errors during initialization
+	if (k_err_cnt) {
+		return -k_err_cnt;
+	}
+	// boundary check
+	if (tm <= 0) {
+		return -555;
+	} else if (10 >= tm) {
+		fakecnt = fakecnt_preset = 0;	// on duty for every interrupt
+	} else if ((tm <= 10000) && (10 * (tm / 10) == tm)) {	// 20,30,40,50,...,10000
+		fakecnt_preset = fakecnt = tm / 10;
+		tm = 10;
+	} else {
+		return -666;
+	}
+
+	DI();						// silencio
+	k_tick_size = tm;
 
 //  outdated ? JDN NASTY
 #if defined(__AVR_ATmega32U4__)
-    // 32u4 have no intern/extern clock source register
+	// 32u4 have no intern/extern clock source register
 #else
-    // should be default ASSR &= ~(1 << AS2);   // Select clock source: internal I/O clock 32u4 does not have this facility
+	// should be default ASSR &= ~(1 << AS2);   // Select clock source: internal I/O clock 32u4 does not have this facility
 #endif
 
-    TCCRxA = 0;
-    TCCRxB = PRESCALE;		// atm328s  2560,...
+	TCCRxA = 0;
+	TCCRxB = PRESCALE;			// atm328s  2560,...
 
-    if (F_CPU == 16000000L) {
-        tcntValue = COUNTMAX - tm * DIVV;
+	if (F_CPU == 16000000L) {
+		tcntValue = COUNTMAX - tm * DIVV;
 
-        
-    } else {
-        tcntValue = COUNTMAX - tm * DIVV8;    // 8 Mhz wwe assume
-    }
-        
-    tcntValue +=2;  // add magic water :-) dep on your xtal
-    
-    TCNTx = tcntValue;
+	} else {
+		tcntValue = COUNTMAX - tm * DIVV8;	// 8 Mhz wwe assume
+	}
 
-    //  let us start the show
-    TIMSKx |= (1 << TOIEx);	// enable interrupt
+	tcntValue += 2;				// add magic water :-) dep on your xtal
 
-    pRun = pmain_el;		// just for ki_task_shift
-    k_running = 1;
+	TCNTx = tcntValue;
 
-    DI ();
-    ki_task_shift ();		// bye bye from here
-    EI ();
+	//  let us start the show
+	TIMSKx |= (1 << TOIEx);		// enable interrupt
 
-    // this while loop bq main are dummy
-    while (!stopp);
+	pRun = pmain_el;			// just for ki_task_shift
+	k_running = 1;
 
-    return (pmain_el->cnt1);	// haps from pocket from kstop
+	DI();
+	ki_task_shift();			// bye bye from here
+	EI();
+
+	// this while loop bq main are dummy
+	while (!stopp) ;
+
+	return (pmain_el->cnt1);	// haps from pocket from kstop
 }
 
-int
-k_stop (int exitVal)
+int k_stop(int exitVal)
 {
 // DANGEROUS - handle with care - no isr timer control etc etc
 // I WILL NEVER USE IT
-    DI ();			// silencio
-    if (!k_running) {
-        EI ();
-        return -1;
-    }
+	DI();						// silencio
+	if (!k_running) {
+		EI();
+		return -1;
+	}
 
-    pmain_el->cnt1 = exitVal;	// transfer in pocket
-    //NASTY
-    // stop tick timer isr
-    TIMSKx &= ~(1 << TOIEx);
+	pmain_el->cnt1 = exitVal;	// transfer in pocket
+	//NASTY
+	// stop tick timer isr
+	TIMSKx &= ~(1 << TOIEx);
 
-    stopp = 1;
-    // back to main
-    AQ.next = pmain_el;		// we will be the next BRUTAL WAY TO DO IT NASTY
-    ki_task_shift ();
-    while (1);			// you will never come here
+	stopp = 1;
+	// back to main
+	AQ.next = pmain_el;			// we will be the next BRUTAL WAY TO DO IT NASTY
+	ki_task_shift();
+	while (1) ;					// you will never come here
 }
 
-void
-k_reset ()
+void k_reset()
 {
-    DI ();
-    wdt_enable (WDTO_15MS);
-    while (1);
-}
-
-//-------------------------------------------------------------------------------------------
-
-unsigned long
-k_millis (void)
-{
-    unsigned long l;
-
-    DI ();
-    l = k_millis_counter;
-    EI ();
-    return l;
+	DI();
+	wdt_enable(WDTO_15MS);
+	while (1) ;
 }
 
 //-------------------------------------------------------------------------------------------
 
-int
-k_tmrInfo (void)
+unsigned long k_millis(void)
 {
-    return (KRNLTMR);
+	unsigned long l;
+
+	DI();
+	l = k_millis_counter;
+	EI();
+	return l;
 }
 
 //-------------------------------------------------------------------------------------------
 
-char
-k_set_preempt (char on)
+int k_tmrInfo(void)
 {
-    if (on == 0 || on == 1) {
-        krnl_preempt_flag = on;
-    }
-    return krnl_preempt_flag;
+	return (KRNLTMR);
 }
 
 //-------------------------------------------------------------------------------------------
 
-char
-k_get_preempt (void)
+char k_set_preempt(char on)
 {
-    return krnl_preempt_flag;
+	if (on == 0 || on == 1) {
+		krnl_preempt_flag = on;
+	}
+	return krnl_preempt_flag;
+}
+
+//-------------------------------------------------------------------------------------------
+
+char k_get_preempt(void)
+{
+	return krnl_preempt_flag;
 }
 
 //-------------------------------------------------------------------------------------------
 #ifdef KRNLBUG
 
 // defined as weak so compiler will take yours instead of mine
-void __attribute__ ((weak)) k_breakout (void)
+void __attribute__ ((weak)) k_breakout(void)
 {
 }
 
 //-------------------------------------------------------------------------------------------
 
-void __attribute__ ((weak)) k_sem_clip (unsigned char nr, int nrClip)
+void __attribute__ ((weak)) k_sem_clip(unsigned char nr, int nrClip)
 {
 }
 
 //-------------------------------------------------------------------------------------------
 
-void __attribute__ ((weak)) k_send_Q_clip (unsigned char nr, int nrClip)
+void __attribute__ ((weak)) k_send_Q_clip(unsigned char nr, int nrClip)
 {
 }
 #endif
@@ -1250,4 +1198,3 @@ void __attribute__ ((weak)) k_send_Q_clip (unsigned char nr, int nrClip)
 }
 #endif
 */
-

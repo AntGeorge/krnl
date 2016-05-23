@@ -136,7 +136,7 @@ see also http://www.nongnu.org/avr-libc/user-manual/group__avr__interrupts.html
 
 
 ### Overflow detection
-The user can provide two functions which will be called when a semaphore/msgQ are overflooding
+The user can provide two functions which will be called when a semaphore/msgQ are trying to overflood
 
 ### warning / info
 ... from http://arduino-info.wikispaces.com/Timers-Arduino
@@ -156,6 +156,14 @@ The user can provide two functions which will be called when a semaphore/msgQ ar
 
 - tone() function uses at least timer2.
 - -  You can’t use PWM on Pin 3,11 when you use the tone() function an Arduino and Pin 9,10 on Arduino Mega.
+
+
+### Millis Counter
+Krnl provide "unsigned long k_millis_counter" which counts nr of milliseoncds since start. If krnl is running with heartbeat of 5 milliseconds it will be incremented in 5 milliseconds step.
+
+k_millis_counter wraps around after 0xffffffff+1 = 4294967295 milliseconds. Wrap around does not affect krnl because all internal timeouts etc are based on relative counts.
+
+So k_millis_counter is maintained by krnl's ISR but k_millis_counter is NOT used by krnl.
 
 -----
 
