@@ -865,6 +865,8 @@ char k_send(struct k_msg_t *pB, void *el)
 	char res;
 
 	DI();
+	
+	res = ki_send(pB,el);
  
 	if (res == 0) {				// if new task in AQ == someone was waiting for msg
 		ki_task_shift();
