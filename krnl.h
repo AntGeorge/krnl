@@ -45,7 +45,7 @@
 * seeduino 1280 and mega2560    1284p and 2561       *
 *****************************************************/
 // remember to update in krnl.c !!!
-#define KRNL_VRS 2016052
+#define KRNL_VRS 2016055
 
 /***********************
 
@@ -86,7 +86,7 @@ Timer3 16 bits
 
 Timer4, Timer5 16 bits
 - 1280 and 2560 only
- 
+
 On Uno
 - Pins 5 and 6: controlled by timer0
 - Pins 9 and 10: controlled by timer1
@@ -131,16 +131,14 @@ SO BEWARE !!!
 #define K_BUGBLINK
 
 #define KRNL
-// __AVR_ATmega1284P__
 
-// DISPLAY OF PROCESS ID BY LEDS if you want to
 #define KRNLBUG
 
 // USER CONFIGURATION PART
 
 /* which timer to use for krnl heartbeat
 * timer 0 ( 8 bit) is normally used by millis - avoid !
-* timer 1 (16 bit)  DEFAULT
+* timer 1 (16 bit)
 * timer 2 ( 8 bit)
 * timer 3 (16 bit) 1280/1284p/2560 only (MEGA)
 * timer 4 (16 bit) 1280/2560 only (MEGA)
@@ -201,8 +199,6 @@ extern "C" {
 #define MAX_INT 0x7FFF
 #define SEM_MAX_DEFAULT 50
 
-
-
 	extern int k_task, k_sem, k_msg;
 	extern volatile char krnl_preempt_flag;
 	extern char dmy_stk[DMY_STK_SZ];
@@ -214,7 +210,7 @@ extern "C" {
 		*pred;		            // task,sem: double chain lists ptr
 		volatile char sp_lo,	// sem:vacant    | task: low 8 byte of stak adr
 		 sp_hi;		            // sem: vacant   |task: high 8 byte of stak adr
-		                        
+
 
 		char prio;		// task & sem:  priority
 		volatile int cnt1,	// sem: sem counter | task: ptr to stak
@@ -247,6 +243,8 @@ extern "C" {
 
 	extern volatile char k_err_cnt;	// every time an error occurs cnt is incr by one
 
+extern char k_preempt_flag;
+
 /******************************************************
  * MACROS MACROS
  *
@@ -270,7 +268,7 @@ extern "C" {
  * 0x3f SREG
  * 0x3e SPH
  * 0x3d SPL
- * 0x3c EIND  1280/2560 only 
+ * 0x3c EIND  1280/2560 only
  * 0x3b RAMPZ  1280/2560/1284p only
  * ...
  * 0x1f R31
@@ -602,6 +600,7 @@ if (pRun != AQ.next) {  \
 /**
 * Set task asleep for a number of ticks.
 * @param[in] time nr of ticks to sleep < 0
+* @return: 0 is ok(has been suspended), 1(is  not suspended), -1 is wait time is less than 0
 * @remark only to be called after start of KRNL
 */
 	int k_sleep(int time);
@@ -664,17 +663,6 @@ if (pRun != AQ.next) {  \
 	int k_signal(struct k_t *sem);
 
 /**
-* Signal a semaphore. Task shift will task place if a task is started by the signal and has higher priority than you.
-* you shall supply with priority for prio ceiling protocol
-* @param[in] sem semaphore handle
-* @param[in] prio NOT WORKING DONT USE CALL
-* @return 0: ok , -1: max value of semaphore reached
-* @remark The ki_ indicates that interrups is NOT enabled when leaving ki_signal
-* @remark only to be called after start of KRNL
-*/
-	int k_prio_signal(struct k_t *sem, char prio);
-
-/**
 * Wait on a semaphore. Task shift will task place if you are blocked.
 * @param[in] sem semaphore handle
 * @param[in] timeout "<0" you will be started after timeout ticks, "=0" wait forever "-1" you will not wait
@@ -684,17 +672,6 @@ if (pRun != AQ.next) {  \
 * @remark only to be called after start of KRNL
 */
 	int k_wait(struct k_t *sem, int timeout);
-
-/**
-* Wait on a semaphore. Task shift will task place if you are blocked.
-* you shall supply with priority for prio ceiling protocol
-* @param[in] sem semaphore handle
-* @param[in] prio NOT WORKING DONT USE CALL
-* @param[in] timeout "<0" you will be started after timeout ticks, "=0" wait forever "-1" you will not wait
-* @return 1, ok : no suspension, 0: ok you ahv ebeen sleeping, -1: timeout has occured, -2 no wait bq timeout was -1 and semaphore was negative
-* @remark only to be called after start of KRNL
-*/
-	int k_prio_wait(struct k_t *sem, int timeout, char prio);
 
 /**
 * Wait on a semaphore. Task shift will task place if you are blocked.
