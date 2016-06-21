@@ -72,18 +72,21 @@ To enable do:
 2. first line in setup:  wdt_disable(); 
 3. last line before k_start  wdt_enable(WDTO_30MS); or whatever interval you find appropriate.
 In avr/wdt.h following is defined:
- 
- #define 	WDTO_15MS   0
- #define 	WDTO_30MS   1
- #define 	WDTO_60MS   2
- #define 	WDTO_120MS   3
- #define 	WDTO_250MS   4
- #define 	WDTO_500MS   5
- #define 	WDTO_1S   6
- #define 	WDTO_2S   7
-#define 	WDTO_4S   8
- 
-#define 	WDTO_8S   9
+
+- WDTO_15MS   0
+- WDTO_30MS   1
+- WDTO_60MS   2
+- WDTO_120MS   3
+- WDTO_250MS   4
+- WDTO_500MS   5
+- WDTO_1S   6
+- WDTO_2S   7
+- WDTO_4S   8
+- WDTO_8S   9
+
+
+
+
 See in krnl.h for information like ...
 
 ... from http://blog.oscarliang.net/arduino-timer-and-interrupt-tutorial/
