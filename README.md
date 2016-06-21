@@ -69,9 +69,10 @@ Which means ... that the wdt is reset at least every 10 millisecond.
 To enable do:
 
 1. in top of your sketch : #include \<avr/wdt.\h>
-2. first line in setup:  wdt_disable(); 
-3. last line before k_start:  wdt_enable(WDTO_30MS);
+2. first line in setup:  wdt_disable() 
+3. last line before k_start:  wdt_enable(WDTO_30MS)
     or whatever interval you find appropriate.
+
 In avr/wdt.h following is defined:
 
 - WDTO_15MS   0
