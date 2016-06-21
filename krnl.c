@@ -63,7 +63,7 @@
 #pragma message ("krnl detected 8 MHz")
 #endif
 
-#if (KRNL_VRS != 2016055)
+#if (KRNL_VRS != 2016056)
 #error "KRNL VERSION NOT UPDATED in krnl.c "
 #endif
 
@@ -277,7 +277,7 @@ ISR(KRNLTMRVECTOR, ISR_NAKED)  // naked so we have to supply with prolog and epi
 {
 
     PUSHREGS();					// no local vars ! I think
-
+    wdt_reset	();
     TCNTx = tcntValue;			// Reload the timer
 
     if (!k_running) {
@@ -1005,7 +1005,7 @@ int k_stop(int exitVal)
 void k_reset()
 {
     DI();
-    wdt_enable(WDTO_15MS);
+//    wdt_enable(WDTO_15MS);
     while (1) ;
 }
 

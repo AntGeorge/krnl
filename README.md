@@ -1,28 +1,22 @@
-# KRNL - a small preemptive kernel for small systems
+      >>>  KRNL - a small preemptive kernel for small systems <<<
+       
+I have found it interesting to develop an open source realtime kernel 
 
-I have found it interesting to develop an open source realtime kernel for the Arduino platform - but is also portable to other platforms
+for the Arduino platform - but is also portable to other platforms
 
-* latest version 201605 * (See inside krnl.h and krnl.c)
 
-support avr mega: 328p, 1280, 1284p and 2560
 
-PLEASE GO FURTHER DOWN for external interrupt handling ...
-
-changes about clip of semaphores so Liy & Layland RMA is detectable (when it fails deadlines)
-
-- SEE SOME NOTES BELOW ABOUT TIMERS AND PINS
+- SEE SOME NOTES BELOW ABOUT TIMERS AND PINS 
 - Now doxygen docu at html directory :-)
 - See krnl.h for further comments
 - - timers
 - - 8/16 MHz setting
 - - etc
 
-See github.com/jdn-aau  or http://www.control.auc.dk/~jdn/edu/doc/arduino/krnl/
+June 2016 - added watch dog timer - see below
 
-See some warnings in the bottom !!!
-
-## Some highlights
-
+Some highlights
+---------------
 
 - open source (beer license)
 - well suited for teaching
@@ -36,142 +30,79 @@ See some warnings in the bottom !!!
 
 - automatic recognition of Arduino architeture
  - supports all atmega variants I have had available (168,328,1280,2560 - uno, duemillanove, mega 1280 and 2560)
-- Priority ceiling supported with k_prio_wait and k_prio_signal where you supply with task priorities
+Some characteristics:
 
-## Some characteristics:
-
-
-- Mmeory usage
-As of vrs 2001
--- static usage around 70B
--- a semaphore/task occpy 18B in krnl data structure
--- a msg-Q occupy 17B plus 18B(an internal semaphore)
--- the two above allocated from heap
-
-So k_init(2,3,4) gives 71B global (static) and 18*((2+1)+(3+1)+4) + 4*17 = 266B which
-
-the +1 on task for a descriptor for main/dummy
-the +1 on semaphore for the timer/sleep semaphore
-
-And then you have to add up arrays for stack for each task. Less than 50B is not a good idea.
-You can runtime check how deep the stack has been used by k_unused_stak
-
-
-- preemptive scheduling
+- preemptive scheduling 
  - Basic heart beat at 1 kHz. SNOT can have heeartbeat in quants of milli seconds
- - static preemptivepriority scheme
+ - static priority scheme
 -  support task, semaphores, message queues
  - All elements shall be allocated prior to start of KRNL
 - support user ISRs and external interrupts
 
-## Timers
+- supervision og KeRNeL calls
+- all suspending calls (like k_wait, k_receive) returns 
+-- 1 if there was a signal/message waiting for you have not been on hold
+-- 0 is you have been suspended but later receive signal/message
+-- -1 : timeout
+- all signalling calls (like k_signal, k_send) returns
+-- 1 if signal/message has been delivered but no receiver present at primitive
+-- 0 if signal/message has been delivered and receiever was present and was moved to activeQ
+-- -1 if max limit of semaphore/msg Q has been exceeded 
 
-The Arduino has 3 or 6 timers (Mega has 6 the rest has 3)
+- timers
+ - krnl can be configures to use tmr 1,2 and for mega also 3,4,5 for running krnl tick
+ - For timer 0 you should take care of millis and it will require some modifications in arduino lib
+ - see krnl.h for implications (like 
 
-### timer0
+- Accuracy
+ - 8 bit timers (0,2) 1 millisecond is 15.625 countdown on timer
+   - example 10 msec 156 instead of 156.25 so an error of 0.25/156.25 ~= 0.2%
+ - 16 bit timers count down is 1 millisecond for 62.5 count
+ - - example 10 msec ~ 625 countdown == precise :-)
+
+- Watchdog timer
+From vrs 2016056 the timer interrupt do issue a wdt_reset() for every timer interrupt.
+Krnl can run sys tick at 1-10,20,30,40,... msec. 
+If tick speed slower than 10 msec is selected krnl runs a 10 msec tick speed and drive the krnl code in fraction hereof.
+Which means ... that the wdt is reset at least every 10 millisecond.
+
+To enable do:
+
+1. in top of your sketch : #include <avr/wdt.h>
+2. first line in setup:  wdt_disable(); 
+3. last line before k_start  wdt_enable(WDTO_30MS); or whatever interval you find appropriate.
+In avr/wdt.h following is defined:
+ 
+#define 	WDTO_15MS   0
+#define 	WDTO_30MS   1
+#define 	WDTO_60MS   2
+#define 	WDTO_120MS   3
+#define 	WDTO_250MS   4
+#define 	WDTO_500MS   5
+#define 	WDTO_1S   6
+#define 	WDTO_2S   7
+#define 	WDTO_4S   8
+ 
+#define 	WDTO_8S   9
+See in krnl.h for information like ...
+
+... from http://blog.oscarliang.net/arduino-timer-and-interrupt-tutorial/
+Timer0:
 - Timer0 and 2  is a 8bit timer.
 - In the Arduino world Timer0 is been used for the timer functions, like delay(), millis() and micros().
 -  If you change Timer0 registers, this may influence the Arduino timer function.
 - So you should know what you are doing.
 
-### timer1
+Timer1:
 - Timer1 is a 16bit timer.
 - In the Arduino world the Servo library uses Timer1 on Arduino Uno (Timer5 on Arduino Mega).
 
-### timer2
+Timer2:
 - Timer2 is a 8bit timer like Timer0.
 - In the Arduino work the tone() function uses Timer2.
 
-### timer3,
-- timer 3 are only available on Arduino Mega boards.
-- 1280/1284P and 2560 only 
-
-### timer4, timer5
-- timer 4,5 are only available on Arduino Mega boards. 1280/2560
+Timer3, Timer4, Timer5: Timer 3,4,5 are only available on Arduino Mega boards.
 - These timers are all 16bit timers.
-
-- krnl can be configures to use tmr 1,2 and for mega also 3,4,5 for running krnl tick
-- For timer 0 you should take care of millis and it will require some modifications in arduino lib
-- see krnl.h for implications
-
-Accuracy
-
-- 8 bit timers (0,2) 1 millisecond is 15.625 countdown on timer
-   - example 10 msec 156 instead of 156.25 so an error of 0.25/156.25 ~= 0.2%
- - 16 bit timers count down is 1 millisecond for 62.5 count
- - - example 10 msec ~ 625 countdown == precise :-)
-
- - timers default
-  - all except MEGA use timer 1 ( 8 bit)
-  - MEGAs (1280/2560) use timer 5
-  - 1284P uses timer 3
-  - you can change it in krnl.h
-
-### timer quants  (heartbeat)
-k_start accepts 1..10 and 20,30,40,...10000 milliseconds timer quants
-So you can not run krnl with an internal timer at 16 msec
-You can change it in k_start but be aware of implications of 8/16 bit timer usage
-
-External Interrupts and registers
-
-1284P : EICRA register  and EIMSK  (enable interrupt register)
-example:   INT0
-  EIMSK |= (1 << INT0);  // enable external intr on INT0
-  EICRA |= (1 << ISC01); // trigger INT0 on falling edge   
-  EICRA |= (1 << ISC00); //
-   
-EICRA handles INT0.. INT3  (two byte each
-EICRB handles INT4..INT7 (two bytes each)
-
-NOT ALL Arduinos supports all external interrupts 
-
-UNO: INT0, INT1 (
-1284P INT0(rx1) INT1(tx1) INT2(ain0)
-1280/2560 INT0..INT7 EICRA for INT0-3 and EICRB for INT 4-7
-32u4 INT0(i2c:scl) INT1(i2c:sda) INT2(rx1) INT3(tx1)
-1280, 2560 INT0(i2c:scl) INT1(i2c:sda) INT2(rx1) INT3(tx1) IN4-7 on port PE4-PE7
-see also http://www.nongnu.org/avr-libc/user-manual/group__avr__interrupts.html
-
-
-
-
-### Overflow detection
-The user can provide two functions which will be called when a semaphore/msgQ are trying to overflood
-
-### warning / info
-... from http://arduino-info.wikispaces.com/Timers-Arduino
-
-- Servo Library uses Timer1.
-- -  You can’t use PWM on Pin 9, 10 when you use the Servo Library on an Arduino.
-- -  For Arduino Mega it is a bit more difficult. The timer needed depends on the number of servos.
-- -  Each timer can handle 12 servos.
-- -  For the first 12 servos timer 5 will be used (losing PWM on Pin 44,45,46).
-- -  For 24 Servos timer 5 and 1 will be used (losing PWM on Pin 11,12,44,45,46)..
-- -  For 36 servos timer 5, 1 and 3 will be used (losing PWM on Pin 2,3,5,11,12,44,45,46)..
-- -  For 48 servos all 16bit timers 5,1,3 and 4 will be used (losing all PWM pins).
-
-- Pin 11 has shared functionality PWM and MOSI.
-- -  MOSI is needed for the SPI interface, You can’t use PWM on Pin 11 and the SPI interface at the same time on Arduino.
-- -  On the Arduino Mega the SPI pins are on different pins.
-
-- tone() function uses at least timer2.
-- -  You can’t use PWM on Pin 3,11 when you use the tone() function an Arduino and Pin 9,10 on Arduino Mega.
-
-
-### Millis Counter
-Krnl provide "unsigned long k_millis_counter" which counts nr of milliseoncds since start. If krnl is running with heartbeat of 5 milliseconds it will be incremented in 5 milliseconds step.
-
-k_millis_counter wraps around after 0xffffffff+1 = 4294967295 milliseconds. Wrap around does not affect krnl because all internal timeouts etc are based on relative counts.
-
-So k_millis_counter is maintained by krnl's ISR but k_millis_counter is NOT used by krnl.
-
------
-
-See in krnl.h for information like ...
-
-... from http://blog.oscarliang.net/arduino-timer-and-interrupt-tutorial/
-
------
 
 
 Install from github:
@@ -179,20 +110,37 @@ Install from github:
 1) cd whatever/sketchbook/libraries   - see Preferences for path to sketchbook
 2) git clone https://github.com/jdn-aau/krnl.git
 
-## About digital ports
+NB NB NB - TIMER HEARTBEAT
+ From vrs 1236 you can change which timer to use in krnl.c Just look in top of file for KRNLTMR
+ - tested with uno and mega 256
 
-Normally (like on UNO) dig out 8-13 is on PORTB 0-6
+In krnl.c you can configure KRNL to use timer (0),1,2,3,4 or 5. (3,4,5 only for 1280/2560 mega variants)
 
-But on Leonardo it is different  dig 8-13 is 8-11 on PORTB 4-7, 12 on PORTD 6 and 13 on PORTC 7
+You can select heartbeat between 1 and 200 milliseconds in 1 msec steps.
 
-## Warning
-You have from Arduino inherited many critical regions which you have to protect - like
+- Timer0 - An 8 bit timer used by Arduino functions delay(), millis() and micros(). BEWARE
+- Timer1 - A 16 bit timer used by the Servo() library
+- Timer2 - An 8 bit timer used by the Tone() library
+- Timer3,4,5 16 bits
+    
+    
+... from http://arduino-info.wikispaces.com/Timers-Arduino
 
-- Serial channels - only on thread at time must have access
-- digital and analog IO (digitalRead, AnalogRead,...)
-- and in general all libraries - so take care
+- Servo Library uses Timer1. 
+- -  You can’t use PWM on Pin 9, 10 when you use the Servo Library on an Arduino. 
+- -  For Arduino Mega it is a bit more difficult. The timer needed depends on the number of servos. 
+- -  Each timer can handle 12 servos. 
+- -  For the first 12 servos timer 5 will be used (losing PWM on Pin 44,45,46). 
+- -  For 24 Servos timer 5 and 1 will be used (losing PWM on Pin 11,12,44,45,46).. 
+- -  For 36 servos timer 5, 1 and 3 will be used (losing PWM on Pin 2,3,5,11,12,44,45,46).. 
+- -  For 48 servos all 16bit timers 5,1,3 and 4 will be used (losing all PWM pins).
 
-This is NOT an Ardunio problem but a standard feature i multithreaded systems :-)
+- Pin 11 has shared functionality PWM and MOSI. 
+- -  MOSI is needed for the SPI interface, You can’t use PWM on Pin 11 and the SPI interface at the same time on Arduino. 
+- -  On the Arduino Mega the SPI pins are on different pins.
+
+- tone() function uses at least timer2. 
+- -  You can’t use PWM on Pin 3,11 when you use the tone() function an Arduino and Pin 9,10 on Arduino Mega.
 
 (c)
 * "THE BEER-WARE LICENSE" (frit efter PHK)           *
@@ -206,29 +154,8 @@ This is NOT an Ardunio problem but a standard feature i multithreaded systems :-
  *                                                    *
  * Use it at your own risk - no warranty       
 
-
-### About registers
-... from http://www.atmel.com/webdoc/AVRLibcReferenceManual/FAQ_1faq_reg_usage.html
-
-What registers are used by the C compiler?
-
-Data types: char is 8 bits, int is 16 bits, long is 32 bits, long long is 64 bits, float and double are 32 bits (this is the only supported floating point format), pointers are 16 bits (function pointers are word addresses, to allow addressing up to 128K program memory space). There is a -mint8 option (see Options for the C compiler avr-gcc) to make int 8 bits, but that is not supported by avr-libc and violates C standards (int must be at least 16 bits). It may be removed in a future release.
-
-Call-used registers (r18-r27, r30-r31): May be allocated by gcc for local data. You may use them freely in assembler subroutines. Calling C subroutines can clobber any of them - the caller is responsible for saving and restoring.
-
-Call-saved registers (r2-r17, r28-r29): May be allocated by gcc for local data. Calling C subroutines leaves them unchanged. Assembler subroutines are responsible for saving and restoring these registers, if changed. r29:r28 (Y pointer) is used as a frame pointer (points to local data on stack) if necessary. The requirement for the callee to save/preserve the contents of these registers even applies in situations where the compiler assigns them for argument passing.
-
-Fixed registers (r0, r1): Never allocated by gcc for local data, but often used for fixed purposes: 
-
-So a preemptive krnl must preserve ALL registers.  /Jens
-
-
 Happy hacking
 
-See also http://www.control.auc.dk/~jdn/edu/doc/arduino/krnl/
+See also http://es.aau.dk/staff/jdn/edu/doc/arduino/krnl
 
 /Jens
-
-
-and https://github.com/greiman/FreeRTOS-Arduino
-has freertos for Arduino and Arduino Due

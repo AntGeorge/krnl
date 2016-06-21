@@ -45,7 +45,7 @@
 * seeduino 1280 and mega2560    1284p and 2561       *
 *****************************************************/
 // remember to update in krnl.c !!!
-#define KRNL_VRS 2016055
+#define KRNL_VRS 2016056
 
 /***********************
 
