@@ -73,6 +73,14 @@ To enable do:
 3. last line before k_start:  wdt_enable(WDTO_30MS)
     or whatever interval you find appropriate.
 
+Beware of not seeting it to small so you Arduino wont be able to start before wdt timout
+Wdt setup will also be active after wdt reset og button reset. 
+the only way to get rid of it is by powr off system. And if your sw enable it again then ...
+
+So wdt time to 60/120 msec AND follow the procedure above might be the what to do it.
+
+So think a litle about wdt "timing"q
+
 In avr/wdt.h following is defined:
 
 - WDTO_15MS   0
