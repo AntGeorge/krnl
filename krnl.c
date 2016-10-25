@@ -51,7 +51,7 @@
 //http://www.nongnu.org/avr-libc/user-manual/FAQ.html#faq_cplusplus nice info
 
 #include "krnl.h"
-#include <avr/wdt.h>
+ 
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include <stdlib.h>
@@ -208,7 +208,7 @@ static volatile char stopp = 0;	// main will loop on stop as dummy task
 
 unsigned long k_millis_counter = 0;
 unsigned int k_tick_size;
-
+ 
 int tmr_indx;					// for travelling Qs in tmr isr
 
 /******/
@@ -277,7 +277,7 @@ ISR(KRNLTMRVECTOR, ISR_NAKED)  // naked so we have to supply with prolog and epi
 {
 
     PUSHREGS();					// no local vars ! I think
-    wdt_reset	();
+  
     TCNTx = tcntValue;			// Reload the timer
 
     if (!k_running) {
@@ -1001,13 +1001,7 @@ int k_stop(int exitVal)
     ki_task_shift();
     while (1) ;					// you will never come here
 }
-
-void k_reset()
-{
-    DI();
-//    wdt_enable(WDTO_15MS);
-    while (1) ;
-}
+ 
 
 unsigned long k_millis(void)
 {
