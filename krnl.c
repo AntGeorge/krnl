@@ -310,8 +310,9 @@ ISR(KRNLTMRVECTOR, ISR_NAKED)  // naked so we have to supply with prolog and epi
                 pE->cnt2 = pE->cnt3;	// preset again - if cnt3 == 0 and >= 0 the rep timer
                 ki_signal(pE);	//issue a signal to the semaphore
             }
-            pE++;
+            //pE++;
         }
+        pE++;
     }
 
     // Chk timers on tasks - they may be one shoot waiting
@@ -354,10 +355,11 @@ exitt:
 
 void __attribute__ ((naked, noinline)) ki_task_shift(void)
 {
+
     PUSHREGS();					// push task regs on stak so we are rdy to task shift
     K_CHG_STAK();
     POPREGS();					// restore regs
-    RETI();						// and do a reti NB this also enables interrupt !!!
+	RETI();						// and do a reti NB this also enables interrupt !!!
 }
 
 struct k_t *k_crt_task(void (*pTask) (void), char prio, char *pStk, int stkSize)
@@ -621,7 +623,7 @@ int ki_wait(struct k_t *sem, int timeout)
     pRun->cnt2 = timeout;		//  0 == wait forever
 
     if (timeout) {
-        pRun->cnt3 = (int)sem;	// nasty keep ref to semaphore
+        pRun->cnt3 = (int)sem;	// nasty keep ref to semaphore in task stomach
     }
     //  so we can be removed if timeout occurs
 
@@ -849,8 +851,10 @@ void k_round_robbin(void)
 }
 
 /* NASTYvoid from vrs 2001 it is main itself can be changed back
-dummy_task (void) {  while (1); }
 */
+dummy_task (void) {  while (1); }
+
+//char dmy_stk[DMY_STK_SZ];
 
 int k_init(int nrTask, int nrSem, int nrMsg)
 {
@@ -877,9 +881,11 @@ int k_init(int nrTask, int nrSem, int nrMsg)
     pAQ->prio = QHD_PRIO;
 
     // crt dummy
-    // JDN pDmy = k_crt_task (dummy_task, DMY_PRIO, dmy_stk, DMY_STK_SZ);
+//    pDmy = k_crt_task (dummy_task, DMY_PRIO, dmy_stk, DMY_STK_SZ);
+    
     pmain_el = task_pool;
     pmain_el->nr = 0;
+    pmain_el->cnt2 = pmain_el->cnt3 = 0; 
     nr_task++;
     pmain_el->prio = DMY_PRIO;	// main is dummy
     prio_enQ(pAQ, pmain_el);
@@ -967,13 +973,14 @@ int k_start(int tm)
     //  let us start the show
     TIMSKx |= (1 << TOIEx);		// enable interrupt
 
+	DI();
     pRun = pmain_el;			// just for ki_task_shift
+    
     k_running = 1;
 
-    DI();
     ki_task_shift();			// bye bye from here
     EI();
-
+       
     // this while loop bq main are dummy
     while (!stopp) ;
 
