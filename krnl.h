@@ -837,15 +837,7 @@ if (pRun != AQ.next) {  \
 #ifdef K_BUGBLINK
 	void k_bugblink13(char on);
 #endif
-/**
-* returns nr of unbytes bytes on stak.
-* For chekking if stak is too big or to small...
-* @param[in] t Reference to task (by task handle) If null then yourself
-* @return: nr of unused bytes on stak (int)
-* @remark only to be called after start of KRNL
-* @remark no chk of if it is a valid task
-*/
-	int k_stk_chk(struct k_t *t);
+ 
 
 /**
 * Returns amount of unused stak
