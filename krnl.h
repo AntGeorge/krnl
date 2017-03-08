@@ -13,6 +13,7 @@
 *                                                    *
 *      March 2015,2016                               *
 *      Author: jdn                                   *
+*      29 feb 2017                                   *
 **                                                   *
 ******************************************************
 *            (simple not - not ?! :-) )              *
@@ -45,7 +46,7 @@
 * seeduino 1280 and mega2560    1284p and 2561       *
 *****************************************************/
 // remember to update in krnl.c !!!
-#define KRNL_VRS 2016056
+#define KRNL_VRS 20170129
 
 /***********************
 
@@ -124,6 +125,19 @@ TODO pinout below need checkup
 SO BEWARE !!!
 
 ***********************/
+
+#ifndef sbi
+#define sbi(r,b)  r |= _BV(b)
+#endif
+
+
+#ifndef cbi
+#define cbi(r,b) r &= ~_BV(b)
+#endif
+
+#ifndef rbi
+#define cbi(r,b) r &= ~_BV(b)
+#endif
 
 #ifndef KRNL
 
@@ -230,6 +244,7 @@ extern "C" {
 	};
 
 /***** KeRNeL variables *****/
+
 	extern struct k_t *task_pool, *sem_pool, AQ,	// activeQ
 	*pmain_el, *pAQ, *pDmy,	// ptr to dummy task descriptor
 	*pRun,			// ptr to running task
@@ -242,7 +257,7 @@ extern "C" {
 	extern volatile char k_running;	// no running
 
 	extern volatile char k_err_cnt;	// every time an error occurs cnt is incr by one
-
+    extern unsigned long k_millis_counter;
 extern char k_preempt_flag;
 
 /******************************************************
@@ -724,6 +739,20 @@ if (pRun != AQ.next) {  \
 #endif
 
 /**
+* a function for overloading on usersite which is called when a semaphore is overflooding
+* no reset occur - it's only reading out semaphore idendity
+* Wait blablablSignal operations has not taken place !
+* 1: means first semahore allocated by user etc
+* Interrupt is disabled when called and must not be enabled during.. so no print etc
+* @param[in] nr  id of semaphore 1,2,3,...
+* @param[in] nrClip number of times clip has occured (may be reset by call k_wait_lost)
+*/
+#ifdef KRNLBUG
+	void __attribute__ ((weak)) k_sem_unclip(unsigned char nr);
+#endif
+
+
+/**
 * a function for overloading on usersite which is called when a msgQ is overflooding
 * no reset occur - it's only readind out smsgQ idendity
 * 1: means first msgQ allocated by user etc
@@ -837,7 +866,15 @@ if (pRun != AQ.next) {  \
 #ifdef K_BUGBLINK
 	void k_bugblink13(char on);
 #endif
- 
+/**
+* returns nr of unbytes bytes on stak.
+* For chekking if stak is too big or to small...
+* @param[in] t Reference to task (by task handle) If null then yourself
+* @return: nr of unused bytes on stak (int)
+* @remark only to be called after start of KRNL
+* @remark no chk of if it is a valid task
+*/
+	int k_stk_chk(struct k_t *t);
 
 /**
 * Returns amount of unused stak

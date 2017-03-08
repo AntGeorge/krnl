@@ -16,6 +16,7 @@
 *  June,               2014                          *
 *  Feb                 2015                          *
 *                      2016                          *
+*                   29. feb 2017                     *
 *      Author: jdn                                   *
 *                                                    *
 ******************************************************
@@ -65,7 +66,7 @@
 #pragma message ("krnl detected 8 MHz")
 #endif
 
-#if (KRNL_VRS != 2016056)
+#if (KRNL_VRS != 20170129)
 #error "KRNL VERSION NOT UPDATED in krnl.c "
 #endif
 
@@ -636,12 +637,12 @@ int k_signal(struct k_t *sem)
 
 int ki_wait(struct k_t *sem, int timeout)
 {
-// used by msg system
     DI();
 
     if (0 < sem->cnt1)
     {
         sem->cnt1--;			// Salute to Dijkstra
+        k_sem_unclip(sem->nr);
         return (1);				// ok: 1 bq we are not suspended
     }
 
@@ -659,6 +660,7 @@ int ki_wait(struct k_t *sem, int timeout)
     //  so we can be removed if timeout occurs
 
     sem->cnt1--;				// Salute to Dijkstra
+    k_sem_unclip(sem->nr);
 
     enQ(sem, deQ(pRun));
     ki_task_shift();
@@ -901,7 +903,7 @@ void k_round_robbin(void)
 
 /* NASTYvoid from vrs 2001 it is main itself can be changed back
 */
-dummy_task (void)
+void dummy_task (void)
 {
     while (1);
 }
@@ -912,7 +914,7 @@ int k_init(int nrTask, int nrSem, int nrMsg)
 {
     if (k_running)  			// are you a fool ???
     {
-        return (NULL);
+        return (-666);
     }
 
     k_task = nrTask + 1;		// +1 due to dummy
@@ -1113,6 +1115,10 @@ void __attribute__ ((weak)) k_breakout(void)
 }
 
 void __attribute__ ((weak)) k_sem_clip(unsigned char nr, int nrClip)
+{
+}
+
+void __attribute__ ((weak)) k_sem_unclip(unsigned char nr)
 {
 }
 
