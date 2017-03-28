@@ -213,9 +213,9 @@ extern "C" {
 #define MAX_INT 0x7FFF
 #define SEM_MAX_DEFAULT 50
 
-	extern int k_task, k_sem, k_msg;
-	extern volatile char krnl_preempt_flag;
-	extern char dmy_stk[DMY_STK_SZ];
+extern int k_task, k_sem, k_msg;
+extern volatile char krnl_preempt_flag;
+extern char dmy_stk[DMY_STK_SZ];
 
 /***** KeRNeL data types *****/
 	struct k_t {
@@ -224,9 +224,9 @@ extern "C" {
 		*pred;		            // task,sem: double chain lists ptr
 		volatile char sp_lo,	// sem:vacant    | task: low 8 byte of stak adr
 		 sp_hi;		            // sem: vacant   |task: high 8 byte of stak adr
-
-
-		char prio;		// task & sem:  priority
+		char prio,		// task & sem:  priority
+		ceiling_prio,   // sem
+		saved_prio;  // semaohore
 		volatile int cnt1,	// sem: sem counter | task: ptr to stak
 		 cnt2,		// asem: dyn part of time counter | task: timeout
 		 cnt3,		// sem: preset timer value |  task: ptr to Q we are hanging in
@@ -649,6 +649,36 @@ if (pRun != AQ.next) {  \
 * @remark only to be called before start of KRNL
 */
 	struct k_t *k_crt_sem(char init_val, int maxvalue);
+
+
+/**
+* adds ceiling priority to semaphore 
+* use k_mut_enter k_mut_leave instead of wait and signal
+* Can only be called before k_start
+* @param[in] sem reference to sem used for mutex - no check 
+* @param[in] prio Ceiling pirority 
+* @return 0: ok , otherwise bad bad 
+* @remark only to be called before start of KRNL
+*/
+int k_set_mut_ceiling(struct k_t *sem, char prio) 
+
+
+/**
+* Enter mutex (eq to k_wait...) 
+* use k_mut_enter / k_mut_leave instead of wait and signal
+* @param[in] sem aka mutex 
+* @param[in] timeout  timeout value 
+* @return 0: ok otherwise bad bad
+*/
+int k_mut_enter(struct k_t *sem, int timeout);
+
+/**
+* Leave mutex (eq to k_signal...) 
+* use k_mut_enter/ k_mut_leave instead of wait and signal
+* @param[in] sem used as mutex 
+* @return 0: ok otherwise bad bad
+*/
+int k_mut_leave(struct k_t *sem);
 
 /**
 * attach a timer to the semaphore so KRNL will signal the semaphore with regular intervals.

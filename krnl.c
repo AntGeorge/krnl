@@ -532,6 +532,20 @@ int k_set_prio(char prio)
     return (i);
 }
 
+int k_set_mut_ceiling(struct k_t *sem, char prio) 
+{
+    // NB NB assume semaphore is created prior to this call
+    // NO CHECK - no mercy
+    if ( (k_running) || ((prio <= 0) || (DMY_PRIO < prio))
+            || (k_task <= nr_task))
+    {
+       return (-1); // bad bad
+    }
+    sem->ceiling_prio = prio;
+    return 0; // OK
+}
+
+
 struct k_t *k_crt_sem(char init_val, int maxvalue)
 {
     struct k_t *sem;
@@ -635,6 +649,26 @@ int k_signal(struct k_t *sem)
     return (res);
 }
 
+int k_mut_leave(struct k_t *sem)
+{
+    int res;
+
+    DI();
+
+    res = ki_signal(sem);		// 1: ok no task to AQ, 0: ok task to AQ
+    pRun->prio = sem->saved_prio; // reset my old priority
+
+   prio_enQ( pAQ, deQ(pRun) );
+
+   if (krnl_preempt_flag)
+     ki_task_shift();		// bq maybe started task has higher prio than me
+  
+    EI();
+
+    return (0);
+}
+
+
 int ki_wait(struct k_t *sem, int timeout)
 {
     DI();
@@ -679,6 +713,22 @@ int k_wait(struct k_t *sem, int timeout)
     EI();
     return retval;				// 0: ok, -1: timeout
 }
+
+int k_mut_enter(struct k_t *sem, int timeout)
+{
+    int retval;
+    DI();
+    retval = ki_wait(sem, timeout);
+
+    if (!retval) { // got the mutex !
+      sem->saved_prio = pRun->prio;  // save
+      pRun->prio = sem->ceiling_prio;
+    }
+
+    EI();
+    return retval;				// 0: ok, -1: timeout
+}
+
 
 int k_wait_lost(struct k_t *sem, int timeout, int *lost)
 {
