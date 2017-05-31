@@ -138,7 +138,7 @@ AND ...
 2) Comment out timer0 ISR in Arduino <path to your install>/hardware/arduino/avr/cores/arduino/wiring.c (ISR(TIMER0\_OVF\_vect)) By setting KRNLTMR to 0 KeRNeL timer replace Arduinos timer at timer0 and maintain millis and micros counters so no animal will be harmed
 
 
-You can select heartbeat between 1 and 200 milliseconds in 1 msec steps.
+You can select heartbeat between 1 and 32767 milliseconds in 1 msec steps.
 
 - Timer0 - An 8 bit timer used by Arduino functions delay(), millis() and micros(). BEWARE
 - Timer1 - A 16 bit timer used by the Servo() library
