@@ -129,6 +129,15 @@ NB NB NB - TIMER HEARTBEAT
 
 In krnl.c you can configure KRNL to use timer (0),1,2,3,4 or 5. (3,4,5 only for 1280/2560 mega variants)
 
+Timer 1,2,3,.. can be selected by a define in top of krnl.h  (KRNLTMR)
+See krnl.h
+
+Timer0 is a litle tricky
+1) Set KRNLTMR to 0
+AND ...
+2) Comment out timer0 ISR in Arduino <path to your install>/hardware/arduino/avr/cores/arduino/wiring.c (ISR(TIMER0\_OVF\_vect)) By setting KRNLTMR to 0 KeRNeL timer replace Arduinos timer at timer0 and maintain millis and micros counters so no animal will be harmed
+
+
 You can select heartbeat between 1 and 200 milliseconds in 1 msec steps.
 
 - Timer0 - An 8 bit timer used by Arduino functions delay(), millis() and micros(). BEWARE
