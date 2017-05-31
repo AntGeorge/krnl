@@ -66,7 +66,7 @@
 #pragma message ("krnl detected 8 MHz")
 #endif
 
-#if (KRNL_VRS != 20170331)
+#if (KRNL_VRS != 20170530)
 #error "KRNL VERSION NOT UPDATED in krnl.c "
 #endif
 
@@ -90,6 +90,7 @@ extern "C" {
 // normally not goood bq of arduino sys timer so you wil get a compile error
 // 8 bit timer !!!
 #define KRNLTMRVECTOR TIMER0_OVF_vect
+/* we use setting from original timer0
 #define TCNTx TCNT0
 #define TCCRxA TCCR0A
 #define TCCRxB TCCR0B
@@ -101,7 +102,8 @@ extern "C" {
 #define COUNTMAX 255
 #define DIVV 15.625
 #define DIVV8 7.812
-
+*/
+ 
 #elif (KRNLTMR == 1)
 
 #define KRNLTMRVECTOR TIMER1_OVF_vect
@@ -128,10 +130,10 @@ extern "C" {
 #define OCRxA OCR2A
 #define TIMSKx TIMSK2
 #define TOIEx TOIE2
-#define PRESCALE 0x07
+#define PRESCALE 0x05
 #define COUNTMAX 255
-#define DIVV 15.625
-#define DIVV8 7.812
+#define DIVV 125
+#define DIVV8 64
 
 #elif (KRNLTMR == 3)
 
@@ -284,30 +286,62 @@ prio_enQ (struct k_t *Q, struct k_t *el)
  */
 struct k_t *pE;
 
+#if (KRNLTMR == 0)
+ 
+extern volatile unsigned long timer0_overflow_count ;
+extern volatile unsigned long timer0_millis;
+static unsigned char timer0_fractt = 0;
+#define MICROSECONDS_PER_TIMER0_OVERFLOW (1024)//clockCyclesToMicroseconds(64 * 256))
+
+// the whole number of milliseconds per timer0 overflow
+#define MILLIS_INC (MICROSECONDS_PER_TIMER0_OVERFLOW / 1000)
+
+// the fractional number of milliseconds per timer0 overflow. we shift right
+// by three to fit these numbers into a byte. (for the clock speeds we care
+// about - 8 and 16 MHz - this doesn't lose precision.)
+#define FRACT_INC ((MICROSECONDS_PER_TIMER0_OVERFLOW % 1000) >> 3)
+#define FRACT_MAX (1000 >> 3)
+
+
+#endif
+ 
+
 ISR (KRNLTMRVECTOR, ISR_NAKED)	// naked so we have to supply with prolog and epilog (push pop stack of regs)
 {
-
   PUSHREGS ();			// no local vars ! I think
-
+// JDN NASTY FOR TIMING ANALYSIS ONLY
+//  PORTB |=0x10;
   wdt_reset ();
+
+#if (KRNLTMR != 0)
   TCNTx = tcntValue;		// Reload the timer
+#endif
 
   if (!k_running)
     {
       goto exitt;
     }
 
-  fakecnt--;			// for very slow timer config in k_start values
-  //bq timer cant run so slow (8 bit timers at least)
-  if (0 < fakecnt)		// how often shall we run KeRNeL timer code ?
-    {
-      goto exitt;
+#if (KRNLTMR == 0) 
+	timer0_millis += MILLIS_INC;
+	timer0_fractt += FRACT_INC;
+	if (timer0_fractt >= FRACT_MAX) {
+		timer0_fractt -= FRACT_MAX;
+		timer0_millis += 1;
+	}
+	timer0_overflow_count++;
+
+#endif
+
+  if (1 < k_tick_size) {
+    fakecnt--;
+    if (!fakecnt) {
+      fakecnt = k_tick_size;
     }
-
-  fakecnt = fakecnt_preset;	// now it's time for doing RT stuff
-
+    else goto exitt;
+  }
+ 
   k_millis_counter += k_tick_size;	// my own millis counter
-
   // the following may look crazy: to go through all semaphores and tasks
   // but you may have 3-4 tasks and 3-6 semaphores in your code
   // so - seems to be efficient :-)
@@ -355,6 +389,8 @@ ISR (KRNLTMRVECTOR, ISR_NAKED)	// naked so we have to supply with prolog and epi
     }
 
 exitt:
+  //JDN NASTY FOR MEA ONLY pin8
+  //PORTB &=0xef;  
   POPREGS ();
   RETI ();
 }
@@ -1045,13 +1081,13 @@ leave:
   return k_err_cnt;
 }
 
-int
-k_start (int tm)
+int k_start (int tm)
 {
   /*
+     TCCRxB
      48,88,168,328, 1280,2560
      timer 0 and 2 has same prescaler config:
-
+     8 bit:
      0 0 0 No clock source (Timer/Counter stopped).
      0 0 1 clk T2S /(No prescaling)
      0 1 0 clk T2S /8 (From prescaler)      2000000 intr/sec at 1 downcount
@@ -1059,7 +1095,8 @@ k_start (int tm)
      1 0 0 clk T2S /64 (From prescaler)      250000
      1 0 1 clk T2S /128 (From prescaler)     125000
      1 1 0 clk T 2 S /256 (From prescaler)    62500
-     1 1 1 clk T 2 S /1024 (From prescaler)   15625  eq 15.625 count down for 1 millisec so 255 counts ~= 80.32 milli sec timer
+     1 1 1 clk T 2 S /1024 (From prescaler)   15625  eq 15.625 count down for 1 millisec 
+                                                     so 255 counts ~= 80.32 milli sec timer
 
      timer 1(328+megas), 3,4,5(megas only)
      1280, 2560,2561 has same prescaler config :
@@ -1081,6 +1118,8 @@ k_start (int tm)
    */
 
   // will not start if errors during initialization
+
+
   if (k_err_cnt)
     {
       return -k_err_cnt;
@@ -1090,23 +1129,14 @@ k_start (int tm)
     {
       return -555;
     }
-  else if (10 >= tm)
+  else 
     {
-      fakecnt = fakecnt_preset = 0;	// on duty for every interrupt
+      k_tick_size = fakecnt = tm;
+      fakecnt_preset = 0;	// on duty for every interrupt
     }
-  else if ((tm <= 10000) && (10 * (tm / 10) == tm))	// 20,30,40,50,...,10000
-    {
-      fakecnt_preset = fakecnt = tm / 10;
-      tm = 10;
-    }
-  else
-    {
-      return -666;
-    }
-
+  
   DI ();			// silencio
-  k_tick_size = tm;
-
+ 
 //  outdated ? JDN NASTY
 #if defined(__AVR_ATmega32U4__)
   // 32u4 have no intern/extern clock source register
@@ -1114,25 +1144,25 @@ k_start (int tm)
   // should be default ASSR &= ~(1 << AS2);   // Select clock source: internal I/O clock 32u4 does not have this facility
 #endif
 
+#if (KRNLTMR !=0)
   TCCRxA = 0;
   TCCRxB = PRESCALE;		// atm328s  2560,...
 
   if (F_CPU == 16000000L)
     {
-      tcntValue = COUNTMAX - tm * DIVV;
+      tcntValue = COUNTMAX -  DIVV;
 
     }
   else
     {
-      tcntValue = COUNTMAX - tm * DIVV8;	// 8 Mhz wwe assume
+      tcntValue = COUNTMAX -  DIVV8;	// 8 Mhz wwe assume
     }
 
-  tcntValue += 2;		// add magic water :-) dep on your xtal
-
-  TCNTx = tcntValue;
+ TCNTx = tcntValue;
 
   //  let us start the show
   TIMSKx |= (1 << TOIEx);	// enable interrupt
+#endif
 
   DI ();
   pRun = pmain_el;		// just for ki_task_shift
@@ -1163,7 +1193,9 @@ k_stop (int exitVal)
   pmain_el->cnt1 = exitVal;	// transfer in pocket
   //NASTY
   // stop tick timer isr
+#if (KRNLTMR != 0)
   TIMSKx &= ~(1 << TOIEx);
+#endif
 
   stopp = 1;
   // back to main

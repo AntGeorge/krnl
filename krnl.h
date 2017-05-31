@@ -24,6 +24,7 @@
 * this version adapted for Arduino                   *
 *                                                    *
 * (C) 2012,2013,2014                                 *
+*     2017
 *                                                    *
 * Jens Dalsgaard Nielsen <jdn@es.aau.dk>             *
 * http://es.aau.dk/staff/jdn                         *
@@ -46,7 +47,7 @@
 * seeduino 1280 and mega2560    1284p and 2561       *
 *****************************************************/
 // remember to update in krnl.c !!!
-#define KRNL_VRS 20170331
+#define KRNL_VRS 20170530
 
 /***********************
 
@@ -59,7 +60,25 @@ wrap around will have no influence on krnl !!!
 
 NB NB ABOUT TIMERS PORTS ETC
 
-You can configure krnl to use timer 0,1,2,3,4,5
+You can configure krnl to use timer 1,2,3,4,5
+
+If you want to use timer 0 then you need to 
+
+- set KRNLTMR = 0 just below in USER CONFIGURATION PART
+- mangle with Arduino library code in ...
+      hardware/arduino/avr/cores/arduino/wiring.c
+      rename  ISR ... with function head:
+        #if defined(__AVR_ATtiny24__) || defined(__AVR_ATtiny44__) || defined(__AVR_ATtiny84__)
+        ISR(TIM0_OVF_vect)
+        #else
+        ISR(TIMER0_OVF_vect)
+        #endif
+     to something else : mayby void kurt()
+
+This is because krnl install an ISR on timer0 and there cant be two
+Krnl to maintain the millis counters so everything with millis, micros etc is as usual.
+
+
 Buth normally you cant use timer 0 bq it is used for millis and preallocated.
 
 See below
@@ -70,17 +89,17 @@ When using a timer you must be aware of that it will prohibit you from things li
 ... from http://blog.oscarliang.net/arduino-timer-and-interrupt-tutorial/
 
 Timer0:
-- Timer0 is a 8bit timer.
+- 8bit timer.
 - In the Arduino world Timer0 is been used for the timer functions, like delay(), millis() and micros().
 -  If you change Timer0 registers, this may influence the Arduino timer function.
 - So you should know what you are doing.
 
-- Timer1 is a 16bit timer.
+- 16bit timer.
 - In the Arduino world the Servo library uses Timer1 on Arduino Uno (Timer5 on Arduino Mega).
 
 Timer2:
- - Timer2 is a 8bit timer like Timer0.
- -In the Arduino work the tone() function uses Timer2.
+ - 8bit timer like Timer0.
+ - In the Arduino world the tone() function uses Timer2.
 
 Timer3 16 bits
 - 1280/1284P and 2560 only
@@ -124,6 +143,49 @@ TODO pinout below need checkup
 
 SO BEWARE !!!
 
+
+PERFORMANCE
+
+std internal speed 1 kHz
+
+Rudimentary prog with one task the timer ISR takes about 21 usec
+Uno, leonardo and mega measures the same
+
+period:
+   timer0 1024 usec for 1 msec ...
+   timer1,2,3... 1007 usec for 1 msec
+
+
+>>>>>>>>>>>>
+
+MODIFY OF/hardware/arduino/avr/cores/arduino/wiring.c
+
+I have added the MOD part (MOD: modification)
+
+So if you go for timer0 
+1)remove the // in front of #define MOD
+2) change here in krnl.h KRNLTMR to 0 for your architecture
+
+ONLY SUPPORT FOR AVR's (uno,leonardo,nano,mega,...)
+
+
+
+//#define MOD
+
+#if defined (MOD)
+
+void justFakeFctHead()
+#else
+#if defined(__AVR_ATtiny24__) || defined(__AVR_ATtiny44__) || defined(__AVR_ATtiny84__)
+ISR(TIM0_OVF_vect)
+ssfsdf
+#else
+ISR(TIMER0_OVF_vect)
+#endif
+
+#endif
+>>>>>>>>>>>>
+
 ***********************/
 
 #ifndef sbi
@@ -153,31 +215,44 @@ SO BEWARE !!!
 /* which timer to use for krnl heartbeat
 * timer 0 ( 8 bit) is normally used by millis - avoid !
 * timer 1 (16 bit)
-* timer 2 ( 8 bit)
-* timer 3 (16 bit) 1280/1284p/2560 only (MEGA)
+* timer 2 ( 8 bit) not 32u4
+* timer 3 (16 bit) 32u4/1280/1284p/2560 only 
 * timer 4 (16 bit) 1280/2560 only (MEGA)
 * timer 5 (16 bit) 1280/2560 only (MEGA)
 */
 
+
+
 #if defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(__AVR_ATmega2561__)
-#define KRNLTMR 5
+#define KRNLTMR 2
+
 #elif defined (__AVR_ATmega1284P__)
+#define KRNLTMR 2
+
+#elif defined (__AVR_ATmega328P__)  
+#define KRNLTMR 2
+
+#elif defined (__AVR_ATmega32U4__)
 #define KRNLTMR 3
-#elif defined (__AVR_ATmega328P__)  || defined (__AVR_ATmega32U4__)
-#define KRNLTMR 1
+
 #else
-#pragma warn  "unknown AVR cpu type - using 328P"
-#define KRNLTMR 1
+#error  "unknown AVR cpu type - bad place to come" 
+ 
 #endif
 // END USER CONFIGURATION
 
 // check for legal timers
-#if defined(__AVR_ATmega168__) || defined(__AVR_ATmega328P__) || defined(__AVR_ATmega328__) || defined(__AVR_ATmega32U4__)
+#if defined(__AVR_ATmega168__) || defined(__AVR_ATmega328P__) || defined(__AVR_ATmega328__) 
 
 #if (KRNLTMR != 0) && (KRNLTMR != 1) &&(KRNLTMR != 2)
 #error "bad timer selection for krnl heartbeat(168/328/328p/...)"
 #endif
+#endif
 
+#if defined(__AVR_ATmega32U4__)
+#if (KRNLTMR != 0) && (KRNLTMR != 1) &&(KRNLTMR != 3)
+#error "bad timer selection for krnl heartbeat(32u4)...)"
+#endif
 #endif
 
 #if defined (__AVR_ATmega1280__)  || defined(__AVR_ATmega2560__) || defined(__AVR_ATmega2561__)

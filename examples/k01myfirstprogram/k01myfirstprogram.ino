@@ -4,6 +4,8 @@
 // They run at same priority so krnl will do timeslicing between them
 // Watch LED and Serial TX 
 
+// NB only one task must use print if you dont protect the serial port by a critical section
+
 struct k_t *pt1, // pointer to hold reference
   *pt2;          // to taskdescriptor for t1 and t2  
  
@@ -15,6 +17,7 @@ void t1(void)
   // a task must have an endless loop
   // if you end and leave the task function - a crash will occur!!
   // so this loop is the code body for task 1
+
   while (1) {  
     Serial.println("Hello World");
     k_sleep(1000); // let task sleep for 1000 kernel ticks
@@ -38,7 +41,7 @@ void setup()
   Serial.begin(9600);  // for output from task 1
   pinMode(13,OUTPUT);  // for blink on LED from task 2
 
-  // init krnl so you can create 2 tasks, 0 semaphores and no message queues
+  // init krnl so you can create 2 tasks, no semaphores and no message queues
   k_init(2,0,0); 
 
 // two task are created
@@ -62,7 +65,7 @@ void setup()
   // Both task has same priority so krnl will shift between the
   // tasks every 10 milli second (speed set in k_start)
 
-  k_start(1); // start kernel with tick speed 10 milli seconds
+  k_start(1); // start kernel with tick speed 1 milli seconds
 }
 
 void loop(){ /* loop will never be called */ }
