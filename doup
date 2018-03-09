@@ -1,0 +1,14 @@
+rm *~
+rm -fr html
+doxygen
+rsync -av * ~/q/edu/www/edu/doc/arduino/krnl/krnl/
+cp krnl.[hc] ../arduino/sketchbook/libraries/krnl/
+cp -rp examples ../arduino/sketchbook/libraries/krnl/
+cd ~/q/edu/www/edu/doc/arduino/krnl/krnl
+rm krnl.zip
+zip -rp krnl.zip *
+cd ..
+make
+make update
+echo "done"
+

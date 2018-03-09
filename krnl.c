@@ -66,7 +66,7 @@
 #pragma message ("krnl detected 8 MHz")
 #endif
 
-#if (KRNL_VRS != 20170530)
+#if (KRNL_VRS != 20180308)
 #error "KRNL VERSION NOT UPDATED in krnl.c "
 #endif
 
@@ -221,18 +221,19 @@ int tmr_indx;			// for travelling Qs in tmr isr
 void
 k_eat_time (unsigned int eatTime)
 {
+_delay_ms((double)eatTime);
+return;
     while (10 < eatTime)	// _delay_us() performs busywait
     {
 	eatTime -= 10;
-	_delay_us (10000);
+	_delay_ms (10000);
     }
 
-    while (1 < eatTime)		// _delay_us() performs busywait
+    while (0 < eatTime)		// _delay_us() performs busywait
     {
-	eatTime -= 1;
+	eatTime--;
 	_delay_us (1000);
     }
-
 }
 
 //---QOPS---------------------------------------------------------------------
@@ -520,7 +521,7 @@ k_sleep (int time)
 int
 k_unused_stak (struct k_t *t)
 {
-    int i = 0;
+    int i;
     char *pstk;
 
     if (t)			// another task or yourself - NO CHK of validity !!!!!
@@ -532,6 +533,7 @@ k_unused_stak (struct k_t *t)
 
     DI ();
     // look for stack paint
+    i = 0;
     while (*pstk == STAK_HASH) {
 	pstk++;
 	i++;

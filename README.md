@@ -164,17 +164,6 @@ You can select heartbeat between 1 and 32767 milliseconds in 1 msec steps.
 - tone() function uses at least timer2. 
 - -  You can’t use PWM on Pin 3,11 when you use the tone() function an Arduino and Pin 9,10 on Arduino Mega.
 
-A few warnings
---------------
-
-Krnl is an add-on to Arduino and its libraries. So none of the Arduino libraries can "see" krnl adn dont use any of its facilites when they are dealing with interrrupts etc. So please beware.
-
-- Expect SoftSerial to give some fights/problems - dont go higher than 9600 baud
-- You have to guard access to common resources if more than one task want to use them like malloc/free (never use them in a RT program after initialization), serial ports, hardware ports (digitialRead/Write),...
-- If exclusive access is only for a very short time (<< 1 msec) you might use disable/enable interrupt instead of a mutex
-- more to come
-
-
 (c)
 * "THE BEER-WARE LICENSE" (frit efter PHK)           *
  * <jdn@es.aau.dk> wrote this file. As long as you    *
