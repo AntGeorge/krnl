@@ -1,4 +1,4 @@
-    /*****************************************************
+/*****************************************************
 *                                                    *
 *                                                    *
 *  __  _    ___  ____   ____     ___  _              *
@@ -66,7 +66,7 @@
 #pragma message ("krnl detected 8 MHz")
 #endif
 
-#if (KRNL_VRS != 20180308)
+#if (KRNL_VRS != 20180313)
 #error "KRNL VERSION NOT UPDATED in krnl.c "
 #endif
 
@@ -217,12 +217,14 @@ unsigned int k_tick_size;
 int tmr_indx;			// for travelling Qs in tmr isr
 
 /******/
+/* JDN 180312
 
+see krnl.h using _delay_ms
 void
 k_eat_time (unsigned int eatTime)
 {
-_delay_ms((double)eatTime);
-return;
+  _delay_ms(eatTime);
+  return;
     while (10 < eatTime)	// _delay_us() performs busywait
     {
 	eatTime -= 10;
@@ -235,6 +237,7 @@ return;
 	_delay_us (1000);
     }
 }
+*/
 
 //---QOPS---------------------------------------------------------------------
 
@@ -347,6 +350,9 @@ ISR (KRNLTMRVECTOR, ISR_NAKED)	// naked so we have to supply with prolog and epi
     // so - it's a good idea not to init krnl with more items
     // (tasks/Sem/msg descriptors than needed)
 
+    if (krnl_preempt_flag) {
+	prio_enQ (pAQ, deQ (pRun));
+    }
 
     pE = sem_pool;		// Semaphore timer - check timers on semaphores
 
@@ -380,12 +386,11 @@ ISR (KRNLTMRVECTOR, ISR_NAKED)	// naked so we have to supply with prolog and epi
     }
 
     if (krnl_preempt_flag) {
-	prio_enQ (pAQ, deQ (pRun));	// round robbin
 	K_CHG_STAK ();
     }
 
   exitt:
-    //JDN NASTY FOR MEA ONLY pin8
+    //JDN NASTY FOR MEA ONLY onn UNO pin8
     //PORTB &=0xef;  
     POPREGS ();
     RETI ();
@@ -411,8 +416,7 @@ void __attribute__ ((naked, noinline)) ki_task_shift (void)
     RETI ();			// and do a reti NB this also enables interrupt !!!
 }
 
-struct k_t *
-k_crt_task (void (*pTask) (void), char prio, char *pStk, int stkSize)
+struct k_t *k_crt_task (void (*pTask) (void), char prio, char *pStk, int stkSize)
 {
     struct k_t *pT;
     int i;
@@ -515,7 +519,12 @@ freeRam (void)
 int
 k_sleep (int time)
 {
-    return k_wait (pSleepSem, time);
+  int r;
+  if (time <= 0)
+    return -1;
+  r = k_wait (pSleepSem, time);
+  if (r == -1) // timeout ? yes :-)
+    return 0;
 }
 
 int
@@ -549,7 +558,7 @@ k_set_prio (char prio)
     int i;
 
     if (!k_running) {
-	return (-1);
+	return (-2);
     }
 
     DI ();
@@ -557,7 +566,7 @@ k_set_prio (char prio)
     if ((prio <= 0) || (DMY_PRIO <= prio))	// not legal value my friend
     {
 	EI ();
-	return (-2);
+	return (-1);
     }
     i = pRun->prio;
 
@@ -571,16 +580,16 @@ k_set_prio (char prio)
 }
 
 int
-k_set_mut_ceiling (struct k_t *sem, char prio)
+k_mut_ceil_set (struct k_t *sem, char prio)
 {
     // NB NB assume semaphore is created prior to this call
     // NO CHECK - no mercy
     if (k_running) {
-	return (-1);		// bad bad
+	return (-2);		// bad bad
     }
 
     if ((prio <= 0) || (DMY_PRIO <= prio)) {
-	return (-2);		// bad bad
+	return (-1);		// bad bad
     }
     sem->ceiling_prio = prio;
     return 0;			// OK
@@ -658,7 +667,7 @@ ki_signal (struct k_t *sem)
 	    prio_enQ (pAQ, deQ (sem->next));
 	    return (0);
 	}
-	return (1);		// just delivered a signal - no task was waitin
+	return (1);		// just delivered a signal - no task was waiting
     }
 
     if (SEM_MAX_VALUE > sem->clip) {
@@ -693,28 +702,6 @@ k_signal (struct k_t *sem)
 }
 
 
-int
-k_mut_leave (struct k_t *sem)
-{
-    int res;
-
-    DI ();
-
-    res = ki_signal (sem);	// 1: ok no task to AQ, 0: ok task to AQ
-
-    // coming back interrupt is still disabled !
-    pRun->prio = sem->saved_prio;	// reset my old priority
-
-    prio_enQ (pAQ, deQ (pRun));
-
-    if (krnl_preempt_flag)
-	ki_task_shift ();	// bq maybe started task has higher prio than me
-
-    EI ();
-
-    return (0);
-}
-
 
 int
 ki_wait (struct k_t *sem, int timeout)
@@ -729,7 +716,7 @@ ki_wait (struct k_t *sem, int timeout)
 
     if (timeout < 0)		// no luck, dont want to wait so bye bye
     {
-	return (-1);
+	return (-2);
     }
     // from here we want to wait
     pRun->cnt2 = timeout;	//  0 == wait forever
@@ -748,7 +735,7 @@ ki_wait (struct k_t *sem, int timeout)
     // back again - have semaphore received signal or timeout ?
     pRun->cnt3 = 0;		// reset ref to timer semaphore
 
-    return ((char) (pRun->cnt2));	// 0: ok, 1: ok - no suspend , -1: timeout
+    return ((char) (pRun->cnt2));	// 0: ok , -1: timeout
 }
 
 int
@@ -762,32 +749,52 @@ k_wait (struct k_t *sem, int timeout)
 }
 
 int
-k_mut_enter (struct k_t *sem, int timeout)
+k_mut_ceil_enter (struct k_t *sem, int timeout)
 {
     int retval;
     DI ();
+    if (pRun->prio < sem->ceiling_prio ) {  // I have higher priority than ceiling :-(
+      EI();
+      return -3;
+    }
+    sem->saved_prio = pRun->prio;	// do im ceiling
+    pRun->prio = sem->ceiling_prio; // dont need to reinsert in AQ bq ceil prio is higher or equal to mine and Im already in front of AQ
+    prio_enQ (pAQ, deQ (pRun)); // resinsert me in AQ acc to nwe(old) priority
     retval = ki_wait (sem, timeout);
     // coming back interrupt is still disabled !
 
-    if (!retval) {		// got the mutex ! otherwise you did got a timeout
-	sem->saved_prio = pRun->prio;	// do im ceiling
-	pRun->prio = sem->ceiling_prio;
+    if (retval < 0) {		// got NOT the mutex
+      pRun->prio = sem->saved_prio;	// reset to my old priority
+      prio_enQ (pAQ, deQ (pRun)); // resinsert me in AQ acc to nwe(old) priority
+      if (krnl_preempt_flag)
+	ki_task_shift ();	// bq maybe started task has higher prio than me
     }
-
     EI ();
     return retval;		// 0: ok, -1: timeout
 }
 
 
+
 int
-k_wait_lost (struct k_t *sem, int timeout, int *lost)
+k_mut_ceil_leave (struct k_t *sem)
 {
+    int res;
+
     DI ();
-    if (lost != NULL) {
-	*lost = sem->clip;
-	sem->clip = 0;
-    }
-    return k_wait (sem, timeout);
+
+    res = ki_signal (sem);	// 1: ok no task to AQ, 0: ok task to AQ
+
+    // coming back interrupt is still disabled !
+    pRun->prio = sem->saved_prio;	// reset to my old priority
+
+    prio_enQ (pAQ, deQ (pRun)); // resinsert me in AQ acc to nwe(old) priority
+
+    if (krnl_preempt_flag)
+	ki_task_shift ();	// bq maybe started task has higher prio than me
+
+    EI ();
+
+    return (0);
 }
 
 int
@@ -809,6 +816,35 @@ ki_semval (struct k_t *sem)
 
     return (sem->cnt1);
 }
+
+int
+k_semval (struct k_t *sem)
+{
+int v;
+    DI ();
+    v = ki_semval(sem);
+    EI ();
+    return v; 
+}
+
+
+int
+ki_msg_count (struct k_msg_t *m)
+{
+    DI ();
+    return m->cnt;
+}
+
+int
+k_msg_count (struct k_msg_t *m)
+{
+int v;
+    DI ();
+    v = ki_msg_count(m);
+    EI ();
+    return v; 
+}
+
 
 struct k_msg_t *
 k_crt_send_Q (int nr_el, int el_size, void *pBuf)
@@ -898,7 +934,7 @@ k_send (struct k_msg_t *pB, void *el)
     DI ();
 
     res = ki_send (pB, el);
-    if (res == 0)		// if new task in AQ == someone was waiting for msg
+    if (1) //res == 0)		// if new task in AQ == someone was waiting for msg
     {
 	if (krnl_preempt_flag)
 	    ki_task_shift ();
@@ -961,6 +997,7 @@ k_receive (struct k_msg_t *pB, void *el, int timeout, int *lost_msg)
 	    pB->r = 0;
 	}
 
+
 	pSrc = pB->pBuf + pB->r * pB->el_size;
 
 	for (i = 0; i < pB->el_size; i++) {
@@ -993,15 +1030,31 @@ k_round_robbin (void)
     EI ();
 }
 
+
+void
+k_release(void)
+{
+
+    // reinsert running task in activeQ if round robbin is selected
+    DI ();
+    ki_task_shift ();
+    EI ();
+}
+
 /* NASTYvoid from vrs 2001 it is main itself can be changed back
 */
 void
 dummy_task (void)
 {
-    while (1);
+    while (1) {
+      k_round_robbin();
+    }
+
+    
+    
 }
 
-//char dmy_stk[DMY_STK_SZ];
+//Char dmy_stk[DMY_STK_SZ];
 
 int
 k_init (int nrTask, int nrSem, int nrMsg)
@@ -1030,7 +1083,7 @@ k_init (int nrTask, int nrSem, int nrMsg)
     pAQ->prio = QHD_PRIO;
 
     // crt dummy
-//    pDmy = k_crt_task (dummy_task, DMY_PRIO, dmy_stk, DMY_STK_SZ);
+   //pDmy = k_crt_task (dummy_task, DMY_PRIO, dmy_stk, DMY_STK_SZ);
 
     pmain_el = task_pool;
     pmain_el->nr = 0;
@@ -1111,7 +1164,6 @@ k_start (int tm)
 
     if (F_CPU == 16000000L) {
 	tcntValue = COUNTMAX - DIVV;
-
     } else {
 	tcntValue = COUNTMAX - DIVV8;	// 8 Mhz wwe assume
     }
@@ -1131,7 +1183,9 @@ k_start (int tm)
     EI ();
 
     // this while loop bq main are dummy
-    while (!stopp);
+    while (!stopp) {
+       
+    }
 
     return (pmain_el->cnt1);	// haps from pocket from kstop
 }
@@ -1182,6 +1236,7 @@ k_tmrInfo (void)
 char
 k_set_preempt (char on)
 {
+return 1; // JDN HACK
     if (on == 0 || on == 1) {
 	krnl_preempt_flag = on;
     }

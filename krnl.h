@@ -11,9 +11,9 @@
 *                                                    *
 * krnl.h                                             *
 *                                                    *
-*      March 2015,2016                               *
+*      March 2015,2016,..,2018                       *
 *      Author: jdn                                   *
-*      29 feb 2017                                   *
+*      13 MArch 2018                                 * 
 **                                                   *
 ******************************************************
 *            (simple not - not ?! :-) )              *
@@ -47,7 +47,7 @@
 * seeduino 1280 and mega2560    1284p and 2561       *
 *****************************************************/
 // remember to update in krnl.c !!!
-#define KRNL_VRS 20180308
+#define KRNL_VRS 20180313
 
 /***********************
 
@@ -56,7 +56,7 @@ NB NB ABOUT WRAP AROUND
 Krnl maintain a milisecond timer (k_millis_counter)
 It s 32 bit unsigned long so it wraps around after 49.7 days.
 As all timing internal in krnl is relative (from now) then
-wrap around will have no influence on krnl !!!
+wrap around will have no influence on krnl !!!fk_eat
 
 NB NB ABOUT TIMERS PORTS ETC
 
@@ -279,7 +279,7 @@ extern "C"
 #endif
 
 
-#define QHD_PRIO 100		// Queue head prio - for sentinel use
+#define QHD_PRIO 102		// Queue head prio - for sentinel use
 
 #define DMY_PRIO (QHD_PRIO-2)	// dummy task prio (0 == highest prio)
 #define DMY_STK_SZ  90		// staksize for dummy
@@ -683,7 +683,8 @@ if (pRun != AQ.next) {  \
  * Eats CPU time in 1 msec quants
  * @param[in] eatTime  number of milliseconds to eay (<= 10000
  */
-    void k_eat_time (unsigned int eatTime);
+#define k_eat_time(x)  _delay_ms(x)
+// JDN 180312   void k_eat_time (unsigned int eatTime);
 
 /**
 * issues a task shift - handle with care
@@ -732,14 +733,14 @@ if (pRun != AQ.next) {  \
 
 /**
 * adds ceiling priority to semaphore
-* use k_mut_enter k_mut_leave instead of wait and signal
+* use k_mut_ceil_enter k_mut_ceil_leave instead of wait and signal
 * Can only be called before k_start
 * @param[in] sem reference to sem used for mutex - no check
 * @param[in] prio Ceiling pirority
 * @return 0: ok , otherwise bad bad
 * @remark only to be called before start of KRNL
 */
-    int k_set_mut_ceiling (struct k_t *sem, char prio);
+    int k_mut_ceil_set (struct k_t *sem, char prio);
 
 
 /**
@@ -747,9 +748,9 @@ if (pRun != AQ.next) {  \
 * use k_mut_enter / k_mut_leave instead of wait and signal
 * @param[in] sem aka mutex
 * @param[in] timeout  timeout value
-* @return 0: ok otherwise bad bad
+* @return 0: if you have been waiting, 1 if you just went through, -1 for timeout, -3 if your priority was higher than ceiling priority
 */
-    int k_mut_enter (struct k_t *sem, int timeout);
+    int k_mut_ceil_enter (struct k_t *sem, int timeout);
 
 /**
 * Leave mutex (eq to k_signal...)
@@ -757,7 +758,7 @@ if (pRun != AQ.next) {  \
 * @param[in] sem used as mutex
 * @return 0: ok otherwise bad bad
 */
-    int k_mut_leave (struct k_t *sem);
+    int k_mut_ceil_leave (struct k_t *sem);
 
 /**
 * attach a timer to the semaphore so KRNL will signal the semaphore with regular intervals.
@@ -797,15 +798,6 @@ if (pRun != AQ.next) {  \
 */
     int k_wait (struct k_t *sem, int timeout);
 
-/**
-* Wait on a semaphore. Task shift will task place if you are blocked.
-* @param[in] sem semaphore handle
-* @param[in] timeout "<0" you will be started after timeout ticks, "=0" wait forever "-1" you will not wait
-* @param[out] lost if  not eq NULL it resturns how many signals has been lost
-* @return 0: ok , -1: timeout has occured, -2 no wait bq timeout was -1 and semaphore was negative
-* @remark only to be called after start of KRNL
-*/
-    int k_wait_lost (struct k_t *sem, int timeout, int *lost);
 
 /**
 * Returns how many signals has been lost on semaphore due to saturation
@@ -831,8 +823,39 @@ if (pRun != AQ.next) {  \
 * @return 1: ok not suspended, 0: ok you have been suspended
 * @return -1 no wait maybe bq no timeout was allowed
 * @remark only to be called after start of KRNL
+* @remark do not enable interrupt upon leaving
 */
     int ki_semval (struct k_t *sem);
+
+/**
+* returns value of semaphore
+* @param[in] sem semaphore handle
+* @return 1: ok not suspended, 0: ok you have been suspended
+* @return -1 no wait maybe bq no timeout was allowed
+* @remark only to be called after start of KRNL
+*/
+    int k_semval (struct k_t *sem);
+
+
+/**
+* returns nr of pending messages 
+* @param[in] msgbuffer handle 
+* @return 1: ok not suspended, 0: ok you have been suspended
+* @return -1 no wait maybe bq no timeout was allowed
+* @remark only to be called after start of KRNL
+*/
+int ki_msg_count (struct k_msg_t *m);
+
+
+/**
+* returns nr of pending messages 
+* @param[in] msgbuffer handle 
+* @return 1: ok not suspended, 0: ok you have been suspended
+* @return -1 no wait maybe bq no timeout was allowed
+* @remark only to be called after start of KRNL
+*/
+int k_msg_count (struct k_msg_t *m);
+
 
 /**
 * a function for overloading on usersite which is called when a semaphore is overflooding
@@ -1004,6 +1027,18 @@ if (pRun != AQ.next) {  \
 * @return: current state: 1 preempt sch. 0 non preempt
 **/
     char k_get_preempt (void);
+
+/**
+* round robbin 
+* @return: current state: 1 preempt sch. 0 non preempt
+**/
+void k_round_robbin (void);
+
+/**
+* release 
+* switch running to task in front of Active Q
+**/
+void k_release (void);
 
 /**
 * returns amount of free memory in your system
