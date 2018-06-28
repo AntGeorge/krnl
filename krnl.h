@@ -1,37 +1,36 @@
 /******************************************************
- *                                                    *
-   __  _    ___  ____   ____     ___  _
- |  |/ ]  /  _]|    \ |    \   /  _]| |
- |  ' /  /  [_ |  D  )|  _  | /  [_ | |
- |    \ |    _]|    / |  |  ||    _]| |___
- |     ||   [_ |    \ |  |  ||   [_ |     |
- |  .  ||     ||  .  \|  |  ||     ||     |
- ||||__|\_||_____||__|\_||__|__||_____||_____|
- *                                                    *
- *                                                    *
-   krnl.h
- *                                                    *
-       March 2015,2016,..,2018
-       Author: jdn
-       13 MArch 2018
- **                                                   *
- ******************************************************
+*                                                     *
+*                                                     *
+*             | |/ /___|  _ \| \ | | ___| |           *
+*             | ' // _ \ |_) |  \| |/ _ \ |           *
+*             | . \  __/  _ <| |\  |  __/ |___        *
+*             |_|\_\___|_| \_\_| \_|\___|_____|       *
+*                                                     *
+*                                                     *
+* you are watching krnl.h                             *
+*                                                     *
+*       March 2015,2016,..,2018                       *  
+*       Author: jdn                                   *
+*       13 March 2018                                 *
+*                                                     *
+*******************************************************
+
              (simple not - not ?! :-) )
    my own small KeRNeL adapted for Arduino
- *                                                    *
+                                                    
    previous known as KRNL
- *                                                    *
+                                                     
    this version adapted for Arduino
- *                                                    *
+                                                     
    (C) 2012,2013,2014
-      2017
- *                                                    *
+      2017,2018
+                                                     
    Jens Dalsgaard Nielsen <jdn@es.aau.dk>
    http://es.aau.dk/staff/jdn
    Section of Automation & Control
    Aalborg University,
    Denmark
- *                                                    *
+                                                     
    "THE BEER-WARE LICENSE" (frit efter PHK)
    <jdn@es.aau.dk> wrote this file. As long as you
    retain this notice you can do whatever you want
@@ -40,14 +39,16 @@
    you can buy me a beer in return :-)
    or if you are real happy then ...
    single malt will be well received :-)
- *                                                    *
+                                                     
    Use it at your own risk - no warranty
- *                                                    *
+                                                     
    tested with duemilanove w/328, uno R3,
    seeduino 1280 and mega2560    1284p and 2561
- *****************************************************/
-// remember to update in krnl.c !!!
-    #define KRNL_VRS 20180329
+*****************************************************
+ remember to update in krnl.c !!!
+*****************************************************/
+#define KRNL_VRS 20180329
+
 
 /***********************
 
@@ -186,7 +187,7 @@
   #endif
    >>>>>>>>>>>>
 
-***********************/
+***********************************************************/
 
     #ifndef sbi
     #define sbi(r,b)  r |= _BV(b)
@@ -366,15 +367,33 @@ extern char k_preempt_flag;
    The 2560 series has 3 bytes PC the rest only 2 bytes PC !!! (PC. program counter)
    and no tall has rampz and eind register
 
-
    REGISTER NAMING AND INTERNAL ADRESSING
 
+https://en.wikipedia.org/wiki/Atmel_AVR_instruction_set
+Register	I/O address	Data address
+SREG	0x3F	0x5F
+SP	0x3E:0x3D	0x5E:0x5D
+EIND	0x3C	0x5C
+RAMPZ	0x3B	0x5B
+RAMPY	0x3A	0x5A
+RAMPX	0x39	0x59
+RAMPD	0x38	0x58
+A typical ATmega memory map may look like:
+
+Data address	I/O address	Contents
+0x0000 – 0x001F		Registers R0 – R31
+0x0020 – 0x003F	0x00 – 0x1F	I/O registers (bit-addressable)
+0x0040 – 0x005F	0x20 – 0x3F	I/O registers (not bit-addressable)
+0x0060 – 0x00FF		Extended I/O registers (memory-mapped I/O only)
+0x0100 – RAMEND		Internal SRAM
+
    Register addresses
-   0x3f SREG
-   0x3e SPH
+   IO adr      data addr
+   0x3f SREG    0x5f
+   0x3e SPH     
    0x3d SPL
-   0x3c EIND  1280/2560 only
-   0x3b RAMPZ  1280/2560/1284p only
+   0x3c EIND    0x5c 1280/2560 only
+   0x3b RAMPZ   0x5b 1280/2560/1284p only
    ...
    0x1f R31
    etc
